@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <linearGradient id="starBody" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#5B54F0"/>
+      <stop offset="45%" stop-color="#3A2FD6"/>
+      <stop offset="100%" stop-color="#1E17A8"/>
+    </linearGradient>
+    <linearGradient id="starGloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="starGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#6D64FF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#6D64FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="starShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#2A1FBF" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- ambient glow -->
+  <circle cx="120" cy="120" r="110" fill="url(#starGlow)"/>
+
+  <!-- 4-pointed concave star (sparkle / shuriken) -->
+  <!-- points at top, right, bottom, left; edges curve inward toward center -->
+  <path d="M120 18
+           Q132 96 168 108
+           Q222 120 168 132
+           Q132 144 120 222
+           Q108 144 72 132
+           Q18 120 72 108
+           Q108 96 120 18 Z"
+        fill="url(#starBody)"
+        filter="url(#starShadow)"/>
+
+  <!-- glossy rim -->
+  <path d="M120 18
+           Q132 96 168 108
+           Q222 120 168 132
+           Q132 144 120 222
+           Q108 144 72 132
+           Q18 120 72 108
+           Q108 96 120 18 Z"
+        fill="none" stroke="#B7B2FF" stroke-opacity="0.55" stroke-width="2"/>
+
+  <!-- top-half glass gloss -->
+  <path d="M120 18
+           Q132 96 168 108
+           Q142 112 120 120
+           Q98 112 72 108
+           Q108 96 120 18 Z"
+        fill="url(#starGloss)"/>
+
+  <!-- bright center spark -->
+  <circle cx="120" cy="120" r="5" fill="#FFFFFF" fill-opacity="0.9"/>
+</svg>

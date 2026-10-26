@@ -1,44 +1,33 @@
-# شغالتي — تطبيق خدمات المنازل
+# شغّالتي — تطبيق خدمات منزلية
 
-تطبيق Flutter لحجز عاملات منزليات موثوقات، مع backend TypeScript/Express.
+منصة متكاملة لحجز عاملات منزليات موثوقات.
 
 ## هيكل المشروع
 
 ```
-lib/          — تطبيق Flutter (العميل)
-backend/src/  — خادم Express + TypeScript
-api/          — نقطة دخول Vercel serverless
-web/          — ملفات Flutter Web
+/                   ← تطبيق Flutter (iOS / Android / Windows / Web)
+├── lib/            ← كود Flutter
+├── backend/        ← خادم Node.js + TypeScript
+├── website/        ← موقع الويب (Next.js)
+├── android/        ← مشروع Android
+├── ios/            ← مشروع iOS
+└── web/            ← Flutter Web build
 ```
 
-## الأدوار المتاحة
+## الروابط
 
-| الدور | البريد التجريبي | كلمة المرور |
-|-------|----------------|-------------|
-| عميل | user@example.com | Passw0rd! |
-| عاملة | worker@example.com | Passw0rd! |
-| إدارة | admin@example.com | Passw0rd! |
-| شركة | company@example.com | Passw0rd! |
+| | الرابط |
+|-|--------|
+| 🌐 موقع الويب | https://smartmaid-website.vercel.app |
+| 🔧 Backend API | https://smaidapi.vercel.app/api/v1/health |
+| 📦 تحميل APK | https://github.com/BGHUSSEINSASH/smartmaid-app/releases |
 
 ## تشغيل التطبيق
 
 ```bash
 flutter pub get
-flutter run -d windows
+flutter run
 ```
-
-### تشغيل مع بيانات تجريبية جاهزة
-
-```bash
-flutter run -d windows --dart-define=ENABLE_DEMO_SEED=true
-```
-
-> **ملاحظة لمسارات ويندوز العربية:** إذا فشل البناء بسبب المسار، استخدم junction:
-> ```powershell
-> cmd /c mklink /J C:\shaghalti "C:\Users\BGHUSSEINSASH\شغالتي"
-> cd C:\shaghalti
-> flutter run -d windows
-> ```
 
 ## تشغيل الخادم
 
@@ -48,26 +37,19 @@ npm install
 npm run dev
 ```
 
-### متغيرات البيئة المطلوبة (backend/.env)
+## تشغيل الموقع
 
-```env
-PORT=3000
-JWT_SECRET=your_secret_here
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-ALLOWED_ORIGINS=http://localhost:8080
+```bash
+cd website
+npm install
+npm run dev
 ```
 
-## النشر
+## الأدوار التجريبية
 
-- **Frontend:** Vercel — يوجّه عبر `vercel.json`
-- **Backend:** Render — انظر `render.yaml`
-
-## قاعدة البيانات
-
-البيانات حالياً في الذاكرة (`backend/src/store.ts`) — راجع `DATABASE_REPORT.md` للتفاصيل الكاملة.
-
-## المتطلبات
-
-- Flutter 3.38+
-- Node.js 20+
+| الدور | البريد | كلمة المرور |
+|-------|--------|-------------|
+| عميل | user@example.com | Passw0rd! |
+| عاملة | worker@example.com | Passw0rd! |
+| مدير | admin@example.com | Passw0rd! |
+| شركة | company@example.com | Passw0rd! |

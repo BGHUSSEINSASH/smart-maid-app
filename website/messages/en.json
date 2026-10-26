@@ -1,0 +1,164 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "business": "For Business",
+    "workers": "For Workers",
+    "admin": "Admin Panel",
+    "download": "Download",
+    "tryApp": "Try Now",
+    "cta": "Get the App"
+  },
+  "hero": {
+    "badge": "Book your verified maid today",
+    "title": "Your home deserves",
+    "titleAccent": "a professional touch",
+    "subtitle": "Book verified maids and cleaning companies in under a minute. Secure Escrow payments, live tracking, and real reviews.",
+    "ctaStore": "App Store",
+    "ctaPlay": "Google Play",
+    "ctaTry": "Try Online",
+    "stat1": "User Rating", "stat1v": "4.9",
+    "stat2": "Bookings Done", "stat2v": "1,200+",
+    "stat3": "Active Maids", "stat3v": "150+",
+    "stat4": "Satisfaction", "stat4v": "98%",
+    "cardConfirmed": "Booking Confirmed",
+    "cardWorker": "Maria Santos",
+    "cardReview": "Excellent service!"
+  },
+  "features": {
+    "title": "Everything in one place",
+    "subtitle": "An all-in-one platform built for the best home services experience",
+    "items": {
+      "booking": { "title": "Instant Booking", "desc": "Book your maid in minutes with a simple, clear process" },
+      "verified": { "title": "Verified Maids", "desc": "Full ID and document verification before activation" },
+      "payment": { "title": "Escrow Payments", "desc": "Your money is held until service is completed satisfactorily" },
+      "ratings": { "title": "Real Reviews", "desc": "Full transparency through genuine customer reviews" },
+      "gps": { "title": "GPS Location", "desc": "Set your address precisely with one tap via GPS or map" },
+      "tracking": { "title": "Live Tracking", "desc": "Track your order and maid location in real time" },
+      "wallet": { "title": "Digital Wallet", "desc": "Your balance, top-up and refund anytime, anywhere" },
+      "admin": { "title": "Central Control", "desc": "Admin controls everything - sections, commissions, users" },
+      "pro": { "title": "Pro Subscriptions", "desc": "Gold and Platinum with exclusive discounts and benefits" }
+    }
+  },
+  "how": {
+    "title": "Four simple steps",
+    "subtitle": "From choosing a maid to a clean home - everything in one tap",
+    "steps": {
+      "s1": { "num": "01", "title": "Choose", "desc": "Browse maids and companies, compare ratings and prices" },
+      "s2": { "num": "02", "title": "Book", "desc": "Pick the service and time slot with ease" },
+      "s3": { "num": "03", "title": "Pay Securely", "desc": "Escrow holds funds until service completion" },
+      "s4": { "num": "04", "title": "Enjoy", "desc": "A maid at your home and a post-service review" }
+    }
+  },
+  "roles": {
+    "title": "One platform, three worlds",
+    "subtitle": "An experience crafted specifically for each user type",
+    "customer": {
+      "label": "For Customers",
+      "title": "Your comfort first",
+      "desc": "Fast, secure booking with loyalty points and discounts on every service",
+      "points": ["Book maids or companies","Loyalty points & discounts","Secure Escrow wallet","Live tracking & notifications","GPS address detection","Full ratings & transparency"]
+    },
+    "worker": {
+      "label": "For Maids",
+      "title": "Your income, your control",
+      "desc": "Accept orders, manage your schedule, and keep 80% of every booking",
+      "points": ["Accept or decline orders freely","Keep 80% of every booking","Organized weekly schedule","Transparent settlements","Simple, fast KYC","Reviews build your reputation"]
+    },
+    "company": {
+      "label": "For Companies",
+      "title": "Run operations efficiently",
+      "desc": "Full dashboard to manage your team, revenue, and reports",
+      "points": ["Real KPIs dashboard","Smart order assignment","Detailed revenue reports","Customizable services","Exportable PDF invoices","Flexible subscription plans"]
+    }
+  },
+  "security": {
+    "title": "Security is not optional",
+    "subtitle": "Built on the highest standards of digital protection and security",
+    "items": {
+      "encryption": { "title": "Full SSL Encryption", "desc": "Your data protected with end-to-end encryption" },
+      "identity": { "title": "KYC Identity Verification", "desc": "Every maid verified with official documents" },
+      "escrow": { "title": "Escrow Money Protection", "desc": "Funds held until service is complete" },
+      "pin": { "title": "PIN App Lock", "desc": "Extra protection with PIN or fingerprint" },
+      "audit": { "title": "Full Audit Trail", "desc": "Every action logged and reviewable" },
+      "roles": { "title": "Granular Permissions", "desc": "Admin permissions for staff management" }
+    }
+  },
+  "control": {
+    "title": "Full Central Control",
+    "subtitle": "Admin controls everything from one dashboard — close, open, edit, monitor",
+    "items": [
+      { "icon": "🎛️", "title": "Show/Hide Sections", "desc": "Toggle any app section for any user role with one switch" },
+      { "icon": "💰", "title": "Commission Management", "desc": "Custom commission per company or a global unified rate" },
+      { "icon": "👑", "title": "Grant Subscriptions", "desc": "Give Gold or Platinum to any user from 1 day to a year" },
+      { "icon": "🛡️", "title": "Account Management", "desc": "Suspend, delete, or activate any account instantly with reason" },
+      { "icon": "✅", "title": "KYC Review", "desc": "Approve or reject maid verification with detailed notes" },
+      { "icon": "💬", "title": "Chat Management", "desc": "Reply to users and resolve issues directly from admin" },
+      { "icon": "⚡", "title": "Auto Replies", "desc": "Keywords with instant replies to save support team time" },
+      { "icon": "🎁", "title": "Compensations", "desc": "Issue credits, subscription days, or coupons with documentation" },
+      { "icon": "📊", "title": "Performance Reports", "desc": "Revenue, commissions, worker performance in visual charts" }
+    ]
+  },
+  "workers": {
+    "badge": "For Maids",
+    "title": "Join a trusted home services platform",
+    "subtitle": "Maids earn stable income with full schedule flexibility",
+    "steps": [
+      { "n": "1", "t": "Register your details", "d": "Name, passport, skills in simple steps" },
+      { "n": "2", "t": "KYC Verification", "d": "Upload documents and get approved within 24 hours" },
+      { "n": "3", "t": "Receive bookings", "d": "Accept or decline orders and manage your schedule freely" },
+      { "n": "4", "t": "Collect your earnings", "d": "80% of every booking transferred directly to your bank" }
+    ],
+    "earnings": { "label": "Average Monthly Income", "value": "$1,200+" },
+    "cta": "Register as a Maid"
+  },
+  "testimonials": {
+    "title": "Trusted by our customers",
+    "subtitle": "Real experiences from customers, maids, and companies",
+    "items": [
+      { "n": "Noura Al-Otaibi", "c": "Riyadh", "r": "customer", "t": "Booked a maid in a minute and the service was excellent. Highly recommend!" },
+      { "n": "Khalid Al-Mutairi", "c": "Jeddah", "r": "customer", "t": "Secure payment and real reviews helped me choose with full confidence." },
+      { "n": "Maria Santos", "c": "Riyadh", "r": "worker", "t": "The platform gives me freedom to manage my time and earn a stable income." },
+      { "n": "Ideal Cleaning Co.", "c": "Kuwait", "r": "company", "t": "The dashboard organized our team and doubled our revenue." }
+    ]
+  },
+  "pricing": {
+    "title": "Plans for everyone",
+    "subtitle": "For individuals, start free. For companies, scale your business",
+    "popular": "Most Popular",
+    "month": "per month",
+    "cta": "Get Started",
+    "plans": {
+      "free": { "name": "Free", "price": "0", "desc": "For individuals & customers", "features": ["Unlimited bookings","Digital wallet","Ratings & reviews","Chat support","GPS address detection"] },
+      "gold": { "name": "SmartGold", "price": "9.99", "desc": "For premium users", "features": ["Everything in Free","10% discount on all bookings","Priority in search results","Free cancellation up to 24h","Priority support"] },
+      "platinum": { "name": "SmartPlatinum", "price": "19.99", "desc": "For professionals & companies", "features": ["Everything in Gold","15% permanent discount","Top priority","Always free cancellation","Instant replacement maid","24/7 dedicated support"] }
+    },
+    "company": {
+      "title": "Company Plans",
+      "plans": {
+        "basic": { "name": "Basic", "price": "49", "desc": "Up to 5 maids", "features": ["Basic dashboard","Monthly reports","Email support"] },
+        "pro": { "name": "Pro", "price": "129", "desc": "Up to 20 maids", "features": ["Advanced analytics","Smart order distribution","Priority support","PDF invoicing"] },
+        "enterprise": { "name": "Enterprise", "price": "Contact", "desc": "Unlimited maids", "features": ["Custom API","Dedicated manager","Full integration","24/7 support"] }
+      }
+    }
+  },
+  "download": {
+    "title": "Download the App Now",
+    "subtitle": "Start your journey to a cleaner home today - free on iOS & Android",
+    "store": "App Store",
+    "play": "Google Play",
+    "qr": "Scan to download"
+  },
+  "footer": {
+    "tagline": "Professional home services in one tap",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "about": "About",
+    "contact": "Contact",
+    "careers": "Careers",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "rights": "All rights reserved"
+  }
+}

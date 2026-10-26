@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/app/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Shaghalty - Smart home services with AI">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Shaghalty">
+  <meta name="theme-color" content="#03045A">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/favicon.ico">
+  <title>Shaghalty | SmartMaid</title>
+  <link rel="manifest" href="manifest.json">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport">
+  <style id="splash-screen-style">
+    html { height: 100%; }
+    body { margin: 0; min-height: 100%; background-color: #FFFFFF; }
+    @media (prefers-color-scheme: dark) { body { background-color: #02021E; } }
+    #splash-container {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; background: #FFFFFF;
+      z-index: 9999; gap: 20px; transition: opacity 0.3s ease;
+    }
+    @media (prefers-color-scheme: dark) { #splash-container { background: #02021E; } }
+    #splash-logo { width: min(40vw, 160px); height: min(40vw, 160px); }
+    #splash-name {
+      font-family: system-ui, sans-serif; font-size: clamp(22px, 6vw, 40px);
+      font-weight: 900; color: #03045A;
+    }
+    @media (prefers-color-scheme: dark) { #splash-name { color: #FFFFFF; } }
+    #splash-spinner {
+      width: 26px; height: 26px; border: 2.5px solid rgba(3,4,90,0.12);
+      border-top-color: #03045A; border-radius: 50%; animation: sp 0.8s linear infinite;
+    }
+    @media (prefers-color-scheme: dark) {
+      #splash-spinner { border-color: rgba(255,255,255,0.12); border-top-color: #fff; }
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+    .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+    .contain { display:block; width:100%; height:100%; object-fit:contain; }
+    .bottom { position:absolute; bottom:0; left:50%; transform:translate(-50%,0); }
+  </style>
+  <script id="splash-screen-script">
+    function removeSplashFromWeb() {
+      var s = document.getElementById("splash-container");
+      if (s) { s.style.opacity = "0"; setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 350); }
+      var s2 = document.getElementById("splash"); if(s2) s2.remove();
+      var s3 = document.getElementById("splash-branding"); if(s3) s3.remove();
+      document.body.style.background = "transparent";
+    }
+  </script>
+</head>
+<body>
+  <div id="splash-container">
+    <svg id="splash-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#5050E0"/><stop offset="100%" stop-color="#2020B5"/>
+        </linearGradient>
+        <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4040D0"/><stop offset="100%" stop-color="#1E1EA8"/>
+        </linearGradient>
+        <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2E2EC0"/><stop offset="100%" stop-color="#181898"/>
+        </linearGradient>
+        <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3838C8"/><stop offset="100%" stop-color="#1A1AA0"/>
+        </linearGradient>
+      </defs>
+      <path d="M4,4 L4,44 Q4,48 8,48 L48,48 L48,8 Q48,4 44,4 Z" fill="url(#g1)" stroke="#C8DAFF" stroke-width="0.5"/>
+      <path d="M96,4 L96,44 Q96,48 92,48 L52,48 L52,8 Q52,4 56,4 Z" fill="url(#g2)" stroke="#C8DAFF" stroke-width="0.5"/>
+      <path d="M96,96 L96,56 Q96,52 92,52 L52,52 L52,92 Q52,96 56,96 Z" fill="url(#g3)" stroke="#C8DAFF" stroke-width="0.5"/>
+      <path d="M4,96 L4,56 Q4,52 8,52 L48,52 L48,92 Q48,96 44,96 Z" fill="url(#g4)" stroke="#C8DAFF" stroke-width="0.5"/>
+      <ellipse cx="35" cy="20" rx="16" ry="7" fill="rgba(255,255,255,0.2)"/>
+    </svg>
+    <div id="splash-name">SmartMaid</div>
+    <div id="splash-spinner"></div>
+  </div>
+  <script src="flutter_bootstrap.js" async=""></script>
+</body>
+</html>
