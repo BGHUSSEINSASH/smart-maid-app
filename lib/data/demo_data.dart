@@ -3,6 +3,13 @@ import 'models.dart';
 class DemoData {
   DemoData._();
 
+  static WorkerModel? byId(String id) {
+    for (final w in [...workers, ...companyWorkers]) {
+      if (w.id == id) return w;
+    }
+    return null;
+  }
+
   static final reviews = <ReviewModel>[
     ReviewModel(
       id: 'r1',
@@ -11,6 +18,10 @@ class DemoData {
       rating: 5.0,
       comment: 'ممتازة جداً! المنزل نظيف بشكل رائع، منظمة ومحترفة.',
       date: DateTime(2024, 12, 20),
+      photos: [
+        'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
+        'https://images.unsplash.com/photo-1527515637462-cff94eebd21f?w=300',
+      ],
     ),
     ReviewModel(
       id: 'r2',
@@ -27,6 +38,9 @@ class DemoData {
       rating: 5.0,
       comment: 'خدمة رائعة، موثوقة وأمينة. أنصح بها بشدة.',
       date: DateTime(2024, 12, 8),
+      photos: [
+        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=300',
+      ],
     ),
     ReviewModel(
       id: 'r4',
@@ -52,6 +66,7 @@ class DemoData {
     ),
     ExtraService(id: 'elderly', name: 'رعاية مسنين', icon: '👴', priceUsd: 20),
     ExtraService(id: 'plants', name: 'رعاية النباتات', icon: '🌱', priceUsd: 8),
+    ExtraService(id: 'tools', name: 'أحتاج أدوات التنظيف', icon: '🧹', priceUsd: 10),
   ];
 
   static const customer = AppUser(
@@ -155,6 +170,7 @@ class DemoData {
       about:
           'عاملة منزل محترفة ضمن شركة النظافة المثالية. خبرة 6 سنوات في التنظيف الشامل.',
       companyId: 'co1',
+      verified: true,
     ),
     WorkerModel(
       id: 'cw2',
@@ -171,6 +187,7 @@ class DemoData {
       about:
           'متخصصة في التنظيف العميق والتعقيم ضمن فريق شركة النظافة المثالية.',
       companyId: 'co1',
+      verified: true,
     ),
     WorkerModel(
       id: 'cw3',
@@ -187,6 +204,7 @@ class DemoData {
       about:
           'مربية أطفال محترفة تعمل ضمن مجموعة الرعاية الشاملة بخبرة 8 سنوات.',
       companyId: 'co2',
+      verified: true,
     ),
     WorkerModel(
       id: 'cw4',
@@ -221,6 +239,7 @@ class DemoData {
       skills: ['التنظيف العميق', 'المطبخ', 'الحمامات', 'غرف النوم'],
       about:
           'خبرة 7 سنوات في تنظيف المنازل بمعايير عالية. موثوقة ومحترفة ومعتمدة.',
+      verified: true,
     ),
     const WorkerModel(
       id: 'w2',
@@ -312,7 +331,11 @@ class DemoData {
       service: 'تنظيف المنازل',
       total: 150,
       status: BookingStatus.confirmed,
-      paymentStatus: PaymentStatus.paid,
+      paymentStatus: PaymentStatus.held,
+      beforeAfterPhotos: [
+        'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=300',
+        'https://images.unsplash.com/photo-1527515637462-cff94eebd21f?w=300',
+      ],
     ),
     BookingModel(
       id: 'b2',
@@ -326,6 +349,10 @@ class DemoData {
       total: 240,
       status: BookingStatus.completed,
       paymentStatus: PaymentStatus.paid,
+      beforeAfterPhotos: [
+        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=300',
+        'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=300',
+      ],
     ),
     BookingModel(
       id: 'b3',
@@ -416,7 +443,7 @@ class DemoData {
     ('👶', 'أطفال'),
     ('🍳', 'طبخ'),
     ('👴', 'مسنون'),
-    ('✨', 'عميق'),
+    ('🧹', 'عميق'),
     ('🏢', 'مكاتب'),
   ];
 

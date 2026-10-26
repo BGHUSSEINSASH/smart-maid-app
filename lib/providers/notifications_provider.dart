@@ -45,7 +45,7 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
         AppNotification(
           id: 'n4',
           title: 'نقاط مكافأة',
-          icon: '🏆',
+          icon: '🎖️',
           body: 'حصلتِ على 50 نقطة من آخر حجز. رصيدك الآن 120 نقطة',
           time: DateTime.now().subtract(const Duration(days: 1)),
         ),
@@ -79,5 +79,5 @@ final notificationsProvider =
     );
 
 final unreadCountProvider = Provider<int>((ref) {
-  return ref.watch(notificationsProvider.notifier).unreadCount;
+  return ref.watch(notificationsProvider).where((n) => !n.read).length;
 });

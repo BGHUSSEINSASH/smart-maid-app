@@ -1,37 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/app_lock_screen.dart';
+import 'l10n/app_localizations.dart';
 import 'providers/auth_provider.dart';
+import 'providers/security_provider.dart';
 import 'providers/settings_provider.dart';
-import 'screens/login_screen.dart';
-import 'screens/main_shell.dart';
-import 'screens/splash_screen.dart';
 
-class SmartMaidApp extends ConsumerWidget {
+class SmartMaidApp extends ConsumerStatefulWidget {
   const SmartMaidApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authProvider);
+  ConsumerState<SmartMaidApp> createState() => _SmartMaidAppState();
+}
+
+class _SmartMaidAppState extends ConsumerState<SmartMaidApp> {
+  late final routerConfig = buildRouter(
+    () => ref.read(authProvider).isLoggedIn,
+    currentRole: () => ref.read(authProvider).user?.role,
+  );
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
 
-    return MaterialApp(
-      title: 'Smart Maid',
+    return MaterialApp.router(
+      title: 'شغالتي',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
+      routerConfig: routerConfig,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: settings.followSystem
+          ? ThemeMode.system
+          : (settings.darkMode ? ThemeMode.dark : ThemeMode.light),
       locale: Locale(settings.language),
-      supportedLocales: const [Locale('ar'), Locale('en')],
+      supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: SplashScreen(
-        nextScreen: auth.isLoggedIn ? const MainShell() : const LoginScreen(),
-      ),
+      builder: (context, child) {
+        final security = ref.watch(securityProvider);
+        final loggedIn = ref.watch(authProvider).isLoggedIn;
+        // بوابة القفل: تظهر فوق كل شيء عند تفعيل القفل ووجود جلسة.
+        final showLock = loggedIn && security.mustUnlock;
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(settings.textScale),
+          ),
+          child: showLock
+              ? AppLockScreen(
+                  onDone: () =>
+                      ref.read(securityProvider.notifier).unlock(),
+                )
+              : child!,
+        );
+      },
     );
   }
 }
+
+

@@ -1,11 +1,11 @@
 {
-    "name": "smart_maid_app",
-    "short_name": "smart_maid_app",
+    "name": "شغالتي",
+    "short_name": "شغالتي",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#4F46E5",
+    "theme_color": "#4F46E5",
+    "description": "تطبيق شغالتي — احجز عاملات منزليات موثوقات بسهولة وأمان.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
