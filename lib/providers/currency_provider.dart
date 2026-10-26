@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/storage/local_store.dart';
 
 enum AppCurrency { usd, iqd }
 
@@ -32,10 +33,17 @@ String _commify(int n) {
 }
 
 class CurrencyNotifier extends StateNotifier<AppCurrency> {
-  CurrencyNotifier() : super(AppCurrency.usd);
-  void set(AppCurrency c) => state = c;
+  CurrencyNotifier()
+      : super(LocalStore.currencyCodeCache == 'iqd'
+            ? AppCurrency.iqd
+            : AppCurrency.usd);
+  void set(AppCurrency c) {
+    state = c;
+    LocalStore.persistCurrency(c == AppCurrency.usd ? 'usd' : 'iqd');
+  }
+
   void toggle() =>
-      state = state == AppCurrency.usd ? AppCurrency.iqd : AppCurrency.usd;
+      set(state == AppCurrency.usd ? AppCurrency.iqd : AppCurrency.usd);
 }
 
 final currencyProvider = StateNotifierProvider<CurrencyNotifier, AppCurrency>(

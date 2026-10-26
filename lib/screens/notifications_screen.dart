@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
+import '../core/ui/time_format.dart';
 import '../providers/notifications_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -123,7 +124,7 @@ class NotificationsScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                DateFormat('dd/MM/yyyy HH:mm').format(n.time),
+                                timeAgo(n.time),
                                 style: const TextStyle(
                                   color: AppColors.muted,
                                   fontSize: 10,
@@ -141,3 +142,4 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 }
+

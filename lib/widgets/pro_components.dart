@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/adaptive.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // Enhanced Card Component
@@ -36,7 +37,7 @@ class ProCard extends StatelessWidget {
         padding: padding ?? const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: gradient == null
-              ? (backgroundColor ?? AppColors.surface)
+              ? (backgroundColor ?? context.surface)
               : null,
           gradient: gradient,
           borderRadius: radius,
@@ -102,13 +103,15 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
       child: Container(
         width: widget.width,
         height: widget.height,
-        decoration: BoxDecoration(
-          shape: widget.isCircle ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: widget.isCircle
-              ? null
-              : (widget.borderRadius ?? BorderRadius.circular(8)),
-          color: AppColors.surfaceSoft,
-        ),
+          decoration: BoxDecoration(
+            shape: widget.isCircle ? BoxShape.circle : BoxShape.rectangle,
+            borderRadius: widget.isCircle
+                ? null
+                : (widget.borderRadius ?? BorderRadius.circular(8)),
+            color: context.isDark
+                ? Colors.white10
+                : AppColors.surfaceSoft,
+          ),
       ),
     );
   }
@@ -158,19 +161,19 @@ class EmptyState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: AppColors.ink,
+                color: context.ink,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.muted,
+                color: context.mutedText,
                 height: 1.5,
               ),
             ),

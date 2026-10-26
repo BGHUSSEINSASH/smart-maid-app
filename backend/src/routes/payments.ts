@@ -1,7 +1,7 @@
 import { Request, Response, Router } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
-import { requireAuth, type AuthedRequest } from '../middleware/auth';
+import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { bookings } from '../store';
 
 const router = Router();
@@ -53,20 +53,29 @@ router.post('/intent', requireAuth, (req: AuthedRequest, res) => {
   });
 });
 
-router.post('/:paymentId/status', (req, res) => {
-  const parsed = updateStatusSchema.safeParse(req.body);
+router.post(
+  '/:paymentId/status',
+  requireAuth,
+  requireRole('admin', 'worker'),
+  (req: AuthedRequest, res) => {
+    const parsed = updateStatusSchema.safeParse(req.body);
 
-  if (!parsed.success) {
-    res.status(400).json({ message: 'Invalid payload', errors: parsed.error.flatten() });
-    return;
-  }
+    if (!parsed.success) {
+      res.status(400).json({ message: 'Invalid payload', errors: parsed.error.flatten() });
+      return;
+    }
 
-  const booking = bookings.find((item) => item.paymentIntentId === req.params.paymentId);
+    const booking = bookings.find((item) => item.paymentIntentId === req.params.paymentId);
 
-  if (!booking) {
-    res.status(404).json({ message: 'Payment not found' });
-    return;
-  }
+    if (!booking) {
+      res.status(404).json({ message: 'Payment not found' });
+      return;
+    }
+
+    if (req.user!.role !== 'admin' && booking.userId !== req.user!.id) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
 
   booking.paymentStatus = parsed.data.paymentStatus;
   if (parsed.data.paymentStatus === 'succeeded') {

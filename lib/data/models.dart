@@ -1,4 +1,6 @@
-enum AppRole { customer, worker, admin, company }
+import '../features/auth/domain/app_role.dart';
+
+export '../features/auth/domain/app_role.dart';
 
 enum BookingType { daily, weekly, monthly, annual }
 
@@ -50,6 +52,7 @@ class WorkerModel {
   final List<String> skills;
   final String about;
   final String? companyId; // null = independent worker
+  final bool verified;
 
   const WorkerModel({
     required this.id,
@@ -65,7 +68,11 @@ class WorkerModel {
     required this.skills,
     required this.about,
     this.companyId,
+    this.verified = false,
   });
+
+  String get image => imageUrl;
+  int get experienceYears => (jobsCompleted / 28).ceil();
 }
 
 class CompanyModel {
@@ -167,7 +174,7 @@ class InvoiceData {
 
 enum BookingStatus { pending, confirmed, inProgress, completed, cancelled }
 
-enum PaymentStatus { unpaid, paid, refunded }
+enum PaymentStatus { unpaid, held, paid, refunded }
 
 class BookingModel {
   final String id;
@@ -181,6 +188,12 @@ class BookingModel {
   final double total;
   final BookingStatus status;
   final PaymentStatus paymentStatus;
+  final String notes;
+  final String cancelReason;
+  final bool expressFee;
+  final bool needTools;
+  final DateTime? arrivalTime;
+  final List<String> beforeAfterPhotos;
 
   const BookingModel({
     required this.id,
@@ -194,6 +207,12 @@ class BookingModel {
     required this.total,
     required this.status,
     required this.paymentStatus,
+    this.notes = '',
+    this.cancelReason = '',
+    this.expressFee = false,
+    this.needTools = false,
+    this.arrivalTime,
+    this.beforeAfterPhotos = const [],
   });
 
   BookingModel copyWith({
@@ -208,6 +227,12 @@ class BookingModel {
     double? total,
     BookingStatus? status,
     PaymentStatus? paymentStatus,
+    String? notes,
+    String? cancelReason,
+    bool? expressFee,
+    bool? needTools,
+    DateTime? arrivalTime,
+    List<String>? beforeAfterPhotos,
   }) => BookingModel(
     id: id ?? this.id,
     workerId: workerId ?? this.workerId,
@@ -220,6 +245,12 @@ class BookingModel {
     total: total ?? this.total,
     status: status ?? this.status,
     paymentStatus: paymentStatus ?? this.paymentStatus,
+    notes: notes ?? this.notes,
+    cancelReason: cancelReason ?? this.cancelReason,
+    expressFee: expressFee ?? this.expressFee,
+    needTools: needTools ?? this.needTools,
+    arrivalTime: arrivalTime ?? this.arrivalTime,
+    beforeAfterPhotos: beforeAfterPhotos ?? this.beforeAfterPhotos,
   );
 }
 
@@ -230,6 +261,7 @@ class ReviewModel {
   final double rating;
   final String comment;
   final DateTime date;
+  final List<String> photos;
 
   const ReviewModel({
     required this.id,
@@ -238,6 +270,7 @@ class ReviewModel {
     required this.rating,
     required this.comment,
     required this.date,
+    this.photos = const [],
   });
 }
 

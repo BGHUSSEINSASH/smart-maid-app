@@ -7,7 +7,7 @@ class ApiClient {
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://smart-maid-backend.onrender.com/api/v1',
+    defaultValue: 'https://smaidapi.vercel.app/api/v1',
   );
 
   static const bool demoOnly = bool.fromEnvironment('USE_DEMO_ONLY');
