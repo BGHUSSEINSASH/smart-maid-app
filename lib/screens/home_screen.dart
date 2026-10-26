@@ -10,13 +10,11 @@ import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/favorites_provider.dart';
-import '../core/ui/time_format.dart';
 import '../providers/booking_provider.dart';
 import '../providers/health_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/recommendations_provider.dart';
 
-import '../widgets/shimmer.dart';
 import '../widgets/app_image.dart';
 import '../widgets/pro_components.dart';
 import '../widgets/micro_interactions.dart';

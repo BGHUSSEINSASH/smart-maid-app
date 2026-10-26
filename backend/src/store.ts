@@ -1,10 +1,13 @@
-export type AppRole = 'customer' | 'worker' | 'admin';
+import bcrypt from 'bcryptjs';
+
+export type AppRole = 'customer' | 'worker' | 'admin' | 'company';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   password: string;
+  passwordHash?: string;
   role: AppRole;
 }
 
@@ -31,6 +34,14 @@ export interface Booking {
   createdAt: string;
 }
 
+async function hashSeedPasswords(): Promise<void> {
+  for (const u of users) {
+    if (!u.passwordHash) {
+      u.passwordHash = await bcrypt.hash(u.password, 10);
+    }
+  }
+}
+
 export const users: User[] = [
   {
     id: 'u_customer_1',
@@ -53,12 +64,19 @@ export const users: User[] = [
     password: 'Passw0rd!',
     role: 'admin',
   },
+  {
+    id: 'u_company_1',
+    name: 'Ideal Cleaning Co.',
+    email: 'company@example.com',
+    password: 'Passw0rd!',
+    role: 'company',
+  },
 ];
 
 export const workers: Worker[] = [
   {
     id: 'w1',
-    name: 'Maria',
+    name: 'ماريا سانتوس',
     image: 'https://i.pravatar.cc/160?img=47',
     rating: 4.9,
     experienceYears: 7,
@@ -66,26 +84,162 @@ export const workers: Worker[] = [
   },
   {
     id: 'w2',
-    name: 'Anna',
-    image: 'https://i.pravatar.cc/160?img=32',
+    name: 'آنا كوفالسكي',
+    image: 'https://i.pravatar.cc/160?img=49',
     rating: 4.8,
     experienceYears: 6,
     hourlyRate: 29,
   },
   {
     id: 'w3',
-    name: 'Nour',
-    image: 'https://i.pravatar.cc/160?img=15',
+    name: 'نور خليل',
+    image: 'https://i.pravatar.cc/160?img=50',
     rating: 4.7,
     experienceYears: 5,
     hourlyRate: 27,
+  },
+  {
+    id: 'w4',
+    name: 'فاطمة الحسن',
+    image: 'https://i.pravatar.cc/160?img=48',
+    rating: 4.8,
+    experienceYears: 5,
+    hourlyRate: 30,
+  },
+  {
+    id: 'w5',
+    name: 'لينا رودريغيز',
+    image: 'https://i.pravatar.cc/160?img=51',
+    rating: 4.8,
+    experienceYears: 6,
+    hourlyRate: 35,
   },
 ];
 
 export const bookings: Booking[] = [];
 
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  title: string;
+  amount: number;
+  type: 'topup' | 'payment' | 'withdrawal' | 'earning' | 'refund';
+  createdAt: string;
+}
+
+export const walletTransactions: WalletTransaction[] = [];
+
+export const walletBalances = new Map<string, number>([
+  ['u_customer_1', 250.0],
+  ['u_worker_1', 80.0],
+]);
+
+export function getWalletBalance(userId: string): number {
+  const txSum = walletTransactions
+    .filter((t) => t.userId === userId)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const seed = walletBalances.get(userId) ?? 0;
+  return seed + txSum;
+}
+
+export interface LoyaltyRecord {
+  points: number;
+  history: { title: string; points: number; at: string }[];
+}
+
+export const loyaltyByUser = new Map<string, LoyaltyRecord>([
+  ['u_customer_1', { points: 1250, history: [] }],
+]);
+
+export interface Coupon {
+  code: string;
+  title: string;
+  discountPercent: number;
+  minTotal: number;
+}
+
+export const coupons: Coupon[] = [
+  { code: 'SMART50', title: 'خصم النصف', discountPercent: 50, minTotal: 50 },
+  { code: 'SAVE15', title: 'وفّر 15%', discountPercent: 15, minTotal: 30 },
+  { code: 'MONTHLY10', title: 'باقة الشهر', discountPercent: 10, minTotal: 200 },
+];
+
+export interface Review {
+  id: string;
+  workerId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export const reviews: Review[] = [
+  {
+    id: 'r1',
+    workerId: 'w1',
+    userId: 'u_customer_1',
+    rating: 5,
+    comment: 'ممتازة جداً! المنزل نظيف بشكل رائع.',
+    createdAt: new Date().toISOString(),
+  },
+];
+
+export interface Address {
+  id: string;
+  userId: string;
+  label: string;
+  city: string;
+  details: string;
+  isDefault: boolean;
+}
+
+export const addresses: Address[] = [];
+
+export interface AppNotification {
+  id: string;
+  userId?: string;
+  title: string;
+  body: string;
+  icon: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export const notifications: AppNotification[] = [];
+
 export function makeToken(user: User): string {
   return `demo-token-${user.id}`;
+}
+
+/// رموز إعادة تعيين كلمة المرور المؤقتة (بريد -> رمز).
+export const passwordResetCodes = new Map<string, string>();
+
+/// ينشئ مستخدماً جديداً ويخزّن كلمة المرور مجزّأة.
+export async function createUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  role: AppRole;
+}): Promise<User> {
+  const user: User = {
+    id: `u_${input.role}_${Date.now()}`,
+    name: input.name,
+    email: input.email,
+    password: input.password,
+    passwordHash: await bcrypt.hash(input.password, 10),
+    role: input.role,
+  };
+  users.push(user);
+  return user;
+}
+
+/// يحدّث كلمة مرور مستخدم موجود.
+export async function updateUserPassword(
+  user: User,
+  newPassword: string,
+): Promise<void> {
+  user.password = newPassword;
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
 }
 
 export function parseUserFromToken(token?: string): User | undefined {
@@ -96,3 +250,6 @@ export function parseUserFromToken(token?: string): User | undefined {
   const userId = token.replace('demo-token-', '');
   return users.find((user) => user.id === userId);
 }
+
+void hashSeedPasswords();
+

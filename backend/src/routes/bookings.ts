@@ -14,13 +14,12 @@ const bookingSchema = z.object({
 
 router.post('/', requireAuth, (req: AuthedRequest, res) => {
   const parsed = bookingSchema.safeParse(req.body);
-
   if (!parsed.success) {
     res.status(400).json({ message: 'Invalid payload', errors: parsed.error.flatten() });
     return;
   }
 
-  const worker = workers.find((item) => item.id == parsed.data.workerId);
+  const worker = workers.find((item) => item.id === parsed.data.workerId);
   if (!worker) {
     res.status(404).json({ message: 'Worker not found' });
     return;
@@ -43,14 +42,37 @@ router.post('/', requireAuth, (req: AuthedRequest, res) => {
   res.status(201).json(booking);
 });
 
-router.get('/:id', requireAuth, (req: AuthedRequest, res) => {
-  const booking = bookings.find((item) => item.id === req.params.id && item.userId === req.user!.id);
+router.get('/', requireAuth, (req: AuthedRequest, res) => {
+  const userBookings = bookings
+    .filter(b => b.userId === req.user!.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  res.json({ bookings: userBookings, count: userBookings.length });
+});
 
+router.get('/:id', requireAuth, (req: AuthedRequest, res) => {
+  const booking = bookings.find(
+    (item) => item.id === req.params.id && item.userId === req.user!.id,
+  );
   if (!booking) {
     res.status(404).json({ message: 'Booking not found' });
     return;
   }
+  res.json(booking);
+});
 
+router.patch('/:id/cancel', requireAuth, (req: AuthedRequest, res) => {
+  const booking = bookings.find(
+    (item) => item.id === req.params.id && item.userId === req.user!.id,
+  );
+  if (!booking) {
+    res.status(404).json({ message: 'Booking not found' });
+    return;
+  }
+  if (booking.status === 'completed' || booking.status === 'rejected') {
+    res.status(400).json({ message: 'Cannot cancel this booking' });
+    return;
+  }
+  booking.status = 'rejected';
   res.json(booking);
 });
 
