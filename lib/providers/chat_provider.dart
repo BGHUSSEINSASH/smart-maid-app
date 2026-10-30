@@ -1,54 +1,65 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api/api_client.dart';
 import '../data/models.dart';
-import '../data/demo_data.dart';
 
-class ChatNotifier extends StateNotifier<List<Conversation>> {
-  ChatNotifier() : super(DemoData.conversations);
+/// محادثات مرتبطة بحجز فعلي — الرسائل تُقرأ وتُرسل عبر الخادم فقط.
+class ChatNotifier extends StateNotifier<Map<String, List<MessageModel>>> {
+  ChatNotifier() : super(const {});
 
-  void sendMessage(String conversationId, String senderId, String content) {
-    state = [
-      for (final conv in state)
-        if (conv.id == conversationId)
-          Conversation(
-            id: conv.id,
-            worker: conv.worker,
-            messages: [
-              ...conv.messages,
-              MessageModel(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                senderId: senderId,
-                content: content,
-                timestamp: DateTime.now(),
-              ),
-            ],
-          )
-        else
-          conv,
-    ];
+  List<MessageModel> messagesFor(String bookingId) =>
+      state[bookingId] ?? const [];
+
+  Future<String?> load(String bookingId) async {
+    try {
+      final res = await ApiClient.get('/chat/$bookingId');
+      final list = (res['messages'] as List?) ?? const [];
+      final messages = list.whereType<Map<String, dynamic>>().map((json) {
+        return MessageModel(
+          id: json['id']?.toString() ?? '',
+          senderId: json['senderId']?.toString() ?? '',
+          content: json['body']?.toString() ?? '',
+          timestamp: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+              DateTime.now(),
+        );
+      }).toList();
+      state = {...state, bookingId: messages};
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
   }
 
-  void startConversation(WorkerModel worker, String userId) {
-    final exists = state.any((c) => c.worker.id == worker.id);
-    if (!exists) {
-      state = [
-        Conversation(
-          id: 'c_${worker.id}',
-          worker: worker,
-          messages: [
-            MessageModel(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              senderId: worker.id,
-              content: 'مرحباً! كيف يمكنني مساعدتك؟',
-              timestamp: DateTime.now(),
-            ),
-          ],
-        ),
+  Future<String?> send(String bookingId, String body) async {
+    try {
+      final res = await ApiClient.post('/chat/$bookingId', {'body': body});
+      final message = MessageModel(
+        id: res['id']?.toString() ?? DateTime.now().toString(),
+        senderId: res['senderId']?.toString() ?? '',
+        content: res['body']?.toString() ?? body,
+        timestamp:
+            DateTime.tryParse(res['createdAt']?.toString() ?? '') ??
+                DateTime.now(),
+      );
+      state = {
         ...state,
-      ];
+        bookingId: [...messagesFor(bookingId), message],
+      };
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  Future<String?> report(String bookingId, String reason) async {
+    try {
+      await ApiClient.post('/chat/$bookingId/report', {'reason': reason});
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
     }
   }
 }
 
-final chatProvider = StateNotifierProvider<ChatNotifier, List<Conversation>>(
+final chatProvider = StateNotifierProvider<ChatNotifier, Map<String, List<MessageModel>>>(
   (ref) => ChatNotifier(),
 );

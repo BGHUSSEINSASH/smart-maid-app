@@ -128,8 +128,8 @@ export default function HeroSection() {
             {/* Sub */}
             <p className="t-lead anim-up3" style={{ color: "rgba(255,255,255,.62)", maxWidth: 460 }}>
               {ar
-                ? "احجز عاملات وشركات نظافة موثّقة خلال دقيقة واحدة. دفع آمن، تتبّع لحظي، وتقييمات حقيقية."
-                : "Book verified maids and cleaning companies in under a minute. Secure payments, live tracking, and real reviews."}
+                ? "احجز خدمة منزلية واضحة السعر: تنظيف، رعاية أطفال، أو طبخ. تدفع بعد إتمام الخدمة."
+                : "Book a clearly priced home service: cleaning, childcare or cooking. You pay after the service is done."}
             </p>
 
             {/* CTAs */}

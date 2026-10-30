@@ -72,3 +72,9 @@ flutter_02.log
 flutter_03.log
 screen2.png
 screen3.png
+
+# Android signing
+android/key.properties
+android/upload-keystore.jks
+*.jks
+*.keystore

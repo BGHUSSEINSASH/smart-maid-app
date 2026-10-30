@@ -112,15 +112,16 @@ class OffersScreen extends ConsumerWidget {
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () {
-                              ref.read(couponProvider.notifier).clear();
-                              final r = ref
-                                  .read(couponProvider.notifier)
-                                  .apply(c.code, double.infinity);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text(r.message),
-                                  behavior: SnackBarBehavior.floating));
+                              // الكود يُتحقَّق منه على الخادم عند تطبيقه
+                              // في شاشة الحجز — هنا نسخ فقط.
+                              Clipboard.setData(ClipboardData(text: c.code));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'تم نسخ الكود — استخدمه في شاشة الحجز'),
+                                      behavior: SnackBarBehavior.floating));
                             },
-                            child: const Text('استخدام الآن',
+                            child: const Text('نسخ الكود',
                                 style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w800,

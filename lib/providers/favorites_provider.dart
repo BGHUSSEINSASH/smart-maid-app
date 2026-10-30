@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/storage/local_store.dart';
 
 class FavoritesNotifier extends StateNotifier<Set<String>> {
-  FavoritesNotifier() : super(LocalStore.favoritesCache ?? {'w1', 'w3'});
+  FavoritesNotifier() : super(LocalStore.favoritesCache ?? <String>{});
 
   void toggle(String workerId) {
     final s = Set<String>.from(state);

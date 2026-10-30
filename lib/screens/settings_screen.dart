@@ -136,9 +136,26 @@ class SettingsScreen extends ConsumerWidget {
                 title: Text(AppLocalizations.of(context)!.aboutApp,
                     style:
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                subtitle: const Text('Smart Maid v1.0.0',
+                subtitle: const Text('شغّالتي v1.0.0',
                     style: TextStyle(fontSize: 12)),
-                onTap: () => showAboutDialog(context: context),
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('شغّالتي'),
+                    content: const Text(
+                      'الإصدار 1.0.0 (1)\n'
+                      'خدمات منزلية: حجز، محادثة، تقييم بعد الخدمة، وفاتورة.\n'
+                      'الدعم: support@shaghalti.app',
+                      style: TextStyle(height: 1.7),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('إغلاق'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const Divider(height: 1, indent: 16, endIndent: 16),
               ListTile(
@@ -149,20 +166,18 @@ class SettingsScreen extends ConsumerWidget {
                         TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                 subtitle: const Text('كيف نحمي بياناتك',
                     style: TextStyle(fontSize: 12)),
-                onTap: () => showDialog<void>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('الخصوصية والأمان'),
-                    content: const Text(
-                        'نحفظ بياناتك محلياً على جهازك في هذا الإصدار التجريبي، ولا نشارك أي معلومات مع أطراف ثالثة. في النسخة السحابية تُشفَّر البيانات وتُخزن بأمان.',
-                        style: TextStyle(height: 1.6)),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('فهمت'))
-                    ],
-                  ),
-                ),
+                onTap: () => context.push('/legal/privacy'),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                leading: const Icon(Icons.description_outlined,
+                    color: AppColors.primary),
+                title: const Text('الشروط والأحكام',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                subtitle: const Text('قواعد استخدام الخدمة والإلغاء',
+                    style: TextStyle(fontSize: 12)),
+                onTap: () => context.push('/legal/terms'),
               ),
             ]),
             const SizedBox(height: 20),

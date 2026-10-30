@@ -2,7 +2,7 @@ import '../features/auth/domain/app_role.dart';
 
 export '../features/auth/domain/app_role.dart';
 
-enum BookingType { daily, weekly, monthly, annual }
+enum BookingType { daily, weekly, monthly }
 
 class ExtraService {
   final String id;

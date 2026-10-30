@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { users, updateUserPassword, type AppRole } from '../store';
+import { users, deleteUserData, persist } from '../store';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
@@ -15,7 +15,7 @@ router.get('/users', (_req, res) => {
   res.json({
     users: users.map(u => ({
       id: u.id, name: u.name, email: u.email, role: u.role,
-      isActive: (u as any).isActive !== false,
+      isActive: !u.suspended,
     })),
   });
 });
@@ -25,23 +25,27 @@ const suspendSchema = z.object({ reason: z.string().optional() });
 router.patch('/users/:id/suspend', (req, res) => {
   const user = users.find(u => u.id === req.params.id);
   if (!user) { res.status(404).json({ message: 'User not found' }); return; }
-  (user as any).isActive = false;
-  (user as any).suspendReason = req.body?.reason ?? '';
+  const parsed = suspendSchema.safeParse(req.body ?? {});
+  user.suspended = true;
+  user.suspendReason = parsed.success ? parsed.data.reason : undefined;
+  persist();
   res.json({ message: 'User suspended', userId: user.id });
 });
 
 router.patch('/users/:id/activate', (req, res) => {
   const user = users.find(u => u.id === req.params.id);
   if (!user) { res.status(404).json({ message: 'User not found' }); return; }
-  (user as any).isActive = true;
-  (user as any).suspendReason = '';
+  user.suspended = false;
+  user.suspendReason = undefined;
+  persist();
   res.json({ message: 'User activated', userId: user.id });
 });
 
+// حذف المستخدم يمسح كل بياناته المرتبطة أيضاً.
 router.delete('/users/:id', (req, res) => {
-  const idx = users.findIndex(u => u.id === req.params.id);
-  if (idx === -1) { res.status(404).json({ message: 'User not found' }); return; }
-  users.splice(idx, 1);
+  const user = users.find(u => u.id === req.params.id);
+  if (!user) { res.status(404).json({ message: 'User not found' }); return; }
+  deleteUserData(user.id);
   res.json({ message: 'User deleted' });
 });
 
@@ -85,12 +89,7 @@ interface Discount {
   isActive: boolean;
 }
 
-const discounts: Discount[] = [
-  { id: 'd1', code: 'SMART50', title: 'خصم النصف', discountPercent: 50,
-    minTotal: 50, maxUses: 500, usedCount: 128, isActive: true },
-  { id: 'd2', code: 'SAVE15', title: 'وفّر 15%', discountPercent: 15,
-    minTotal: 30, maxUses: 1000, usedCount: 344, isActive: true },
-];
+const discounts: Discount[] = [];
 
 router.get('/discounts', (_req, res) => { res.json({ discounts }); });
 

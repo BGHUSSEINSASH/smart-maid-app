@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
-import '../core/theme/adaptive.dart';
 
 class TipsScreen extends StatelessWidget {
   const TipsScreen({super.key});
@@ -26,7 +25,7 @@ class TipsScreen extends StatelessWidget {
     ),
     _Tip(
       icon: Icons.weekend_rounded,
-      title: 'aintenance الأثاث',
+      title: 'العناية بالأثاث',
       body: 'لأثاث الخشب، استخدمي قطعة قماش مبللة بماء عادي مع قليل من زيت الزيتون لللمعان.',
       color: AppColors.warning,
     ),
@@ -45,7 +44,7 @@ class TipsScreen extends StatelessWidget {
     _Tip(
       icon: Icons.local_laundry_service_rounded,
       title: 'غسيل الملابس',
-      body: 'افصلي الملابس حسب اللون قبل الغسل. استخدمي ماء بارداً للمعافا ودافئاً لل言われ.',
+      body: 'افصلي الملابس حسب اللون قبل الغسل. استخدمي ماءً بارداً للملابس البيضاء ودافئاً للملوّنة.',
       color: AppColors.accent,
     ),
     _Tip(

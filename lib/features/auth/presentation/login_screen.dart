@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../data/demo_data.dart';
-import '../../../data/models.dart';
 import '../../../providers/auth_provider.dart';
 import 'auth_widgets.dart';
 
@@ -18,7 +16,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
-  bool _showDev = false;
 
   @override
   void dispose() {
@@ -45,23 +42,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } else {
       _err(ref.read(authProvider).error ?? 'تعذر تسجيل الدخول');
     }
-  }
-
-  Future<void> _google() async {
-    final ok = await ref.read(authProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    ok ? context.go('/') : _err(ref.read(authProvider).error ?? 'فشل الدخول');
-  }
-
-  Future<void> _apple() async {
-    final ok = await ref.read(authProvider.notifier).signInWithApple();
-    if (!mounted) return;
-    ok ? context.go('/') : _err(ref.read(authProvider).error ?? 'فشل الدخول');
-  }
-
-  Future<void> _quick(AppUser user) async {
-    await ref.read(authProvider.notifier).loginAs(user);
-    if (mounted) context.go('/');
   }
 
   @override
@@ -155,14 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: TextButton(
-                          onPressed: () => context.push('/forgot-password'),
-                          child: const Text('نسيت كلمة المرور؟'),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       SizedBox(
                         height: 54,
                         child: ElevatedButton.icon(
@@ -180,16 +153,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const AuthDivider(),
-                      const SizedBox(height: 16),
-                      SocialButton.google(
-                          onTap: auth.isLoading ? null : _google),
-                      if (SocialButton.showApple) ...[
-                        const SizedBox(height: 10),
-                        SocialButton.apple(
-                            onTap: auth.isLoading ? null : _apple),
-                      ],
-                      const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -201,18 +164,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      const Divider(color: AppColors.stroke),
-                      TextButton.icon(
-                        onPressed: () => setState(() => _showDev = !_showDev),
-                        icon: Icon(
-                            _showDev
-                                ? Icons.expand_less_rounded
-                                : Icons.developer_mode_rounded,
-                            size: 18),
-                        label: const Text('دخول سريع للاختبار',
-                            style: TextStyle(fontSize: 12)),
+                      TextButton(
+                        onPressed: () => context.go('/'),
+                        child: const Text('تصفح الخدمات كزائر'),
                       ),
-                      if (_showDev) _devRow(),
                     ],
                   ),
                 ),
@@ -224,47 +179,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _devRow() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          _quickRole('👤', 'عميل', DemoData.customer),
-          const SizedBox(width: 8),
-          _quickRole('👩‍💼', 'عاملة', DemoData.workerUser),
-          const SizedBox(width: 8),
-          _quickRole('🏢', 'شركة', DemoData.companyUser),
-          const SizedBox(width: 8),
-          _quickRole('🛡️', 'إدارة', DemoData.admin),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickRole(String emoji, String label, AppUser user) {
-    return Expanded(
-      child: Material(
-        color: AppColors.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: () => _quick(user),
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 20)),
-                const SizedBox(height: 4),
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

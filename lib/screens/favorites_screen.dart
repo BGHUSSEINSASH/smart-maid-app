@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../providers/currency_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../widgets/pro_components.dart';
@@ -15,7 +15,7 @@ class FavoritesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final favIds = ref.watch(favoritesProvider);
     final currency = ref.watch(currencyProvider);
-    final all = [...DemoData.workers, ...DemoData.companyWorkers];
+    final all = [...Catalog.workers, ...Catalog.companyWorkers];
     final favorites = all.where((w) => favIds.contains(w.id)).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

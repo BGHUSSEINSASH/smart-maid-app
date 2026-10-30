@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../data/models.dart';
 import 'booking_provider.dart';
 
@@ -8,7 +8,7 @@ final recommendationsProvider = Provider<List<WorkerModel>>((ref) {
   final bookings = ref.watch(myBookingsProvider);
   if (bookings.isEmpty) {
     // No history — suggest top-rated workers
-    return DemoData.workers
+    return Catalog.workers
         .where((w) => w.isAvailable)
         .toList()
       ..sort((a, b) => b.rating.compareTo(a.rating));
@@ -19,7 +19,7 @@ final recommendationsProvider = Provider<List<WorkerModel>>((ref) {
   final bookedWorkerIds = bookings.map((b) => b.workerId).toSet();
 
   // Find workers in similar categories that weren't booked yet
-  final candidates = DemoData.workers
+  final candidates = Catalog.workers
       .where((w) =>
           w.isAvailable &&
           !bookedWorkerIds.contains(w.id) &&
@@ -30,7 +30,7 @@ final recommendationsProvider = Provider<List<WorkerModel>>((ref) {
   if (candidates.isNotEmpty) return candidates.take(3).toList();
 
   // Fallback: top-rated available workers not yet booked
-  return DemoData.workers
+  return Catalog.workers
       .where((w) => w.isAvailable && !bookedWorkerIds.contains(w.id))
       .toList()
     ..sort((a, b) => b.rating.compareTo(a.rating));
@@ -38,7 +38,7 @@ final recommendationsProvider = Provider<List<WorkerModel>>((ref) {
 
 /// Get similar workers to a specific worker (same category)
 List<WorkerModel> getSimilarWorkers(WorkerModel worker) {
-  return DemoData.workers
+  return Catalog.workers
       .where((w) =>
           w.id != worker.id &&
           w.isAvailable &&

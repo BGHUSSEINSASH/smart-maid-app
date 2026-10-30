@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/nav/app_nav.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../data/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/currency_provider.dart';
@@ -58,8 +58,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       title: 'باقة شهرية للمنزل',
       subtitle: 'تنظيف وغسيل وكي بجدولة مرنة وخصم على التعاقد الطويل.',
       chip: 'الأكثر طلباً',
-      statLabel: 'مشترك نشط',
-      statValue: '+870',
+      statLabel: 'تشمل',
+      statValue: 'تنظيف + غسيل + كي',
       icon: Icons.workspace_premium_rounded,
       gradient: LinearGradient(
         colors: [Color(0xFF0EA5E9), Color(0xFF2563EB), Color(0xFF4F46E5)],
@@ -73,8 +73,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       title: 'حجز سريع في نفس اليوم',
       subtitle: 'عاملات متاحات الآن في منطقتك، تصل خلال وقت قصير.',
       chip: 'متاح الآن',
-      statLabel: 'متوسط وقت الوصول',
-      statValue: '28 دقيقة',
+      statLabel: 'الحجز',
+      statValue: 'حسب الموعد المتاح',
       icon: Icons.bolt_rounded,
       gradient: LinearGradient(
         colors: [Color(0xFF7C3AED), Color(0xFF9333EA), Color(0xFFEC4899)],
@@ -123,7 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   List<WorkerModel> get _filtered {
-    var list = DemoData.workers;
+    var list = Catalog.workers;
     if (_query.isNotEmpty) {
       list = list
           .where((w) => w.name.contains(_query) || w.category.contains(_query))
@@ -135,7 +135,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    if (user == null) return const Scaffold();
+    // الزائر يستطيع تصفح الخدمات والأسعار قبل التسجيل.
+    final firstName = user?.name.split(' ').first ?? '';
 
     final currency = ref.watch(currencyProvider);
     final filtered = _filtered;
@@ -170,10 +171,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Text(
                               DateTime.now().hour < 12
-                                  ? 'صباح الخير، ${user.name.split(' ').first}'
+                                  ? 'صباح الخير${firstName.isEmpty ? '' : '، $firstName'}'
                                   : (DateTime.now().hour < 18
-                                        ? 'مساء الخير، ${user.name.split(' ').first}'
-                                        : 'مرحباً، ${user.name.split(' ').first}'),
+                                        ? 'مساء الخير${firstName.isEmpty ? '' : '، $firstName'}'
+                                        : 'مرحباً${firstName.isEmpty ? '' : '، $firstName'}'),
                               style: TextStyle(
                                 color: context.mutedText,
                                 fontSize: 13,
@@ -262,10 +263,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      CircleAvatar(
+                      AppAvatar(
+                        url: user?.imageUrl ?? '',
                         radius: 22,
-                        backgroundImage: NetworkImage(user.imageUrl),
-                        backgroundColor: AppColors.primaryLight,
+                        label: user?.name ?? '',
                       ),
                     ],
                   ),
@@ -560,7 +561,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: recommended.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
                           itemBuilder: (context, i) {
                             final w = recommended[i];
                             return GestureDetector(

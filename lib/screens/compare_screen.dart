@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../data/models.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/booking_provider.dart';
 import '../widgets/app_image.dart';
 import 'booking_screen.dart';
-import 'worker_profile_screen.dart';
 
 class CompareScreen extends ConsumerStatefulWidget {
   final String? worker1Id;
@@ -27,14 +26,14 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   void initState() {
     super.initState();
     if (widget.worker1Id != null) {
-      _w1 = DemoData.byId(widget.worker1Id!);
+      _w1 = Catalog.byId(widget.worker1Id!);
     }
     if (widget.worker2Id != null) {
-      _w2 = DemoData.byId(widget.worker2Id!);
+      _w2 = Catalog.byId(widget.worker2Id!);
     }
     // Auto-select first two if not specified
-    _w1 ??= DemoData.workers.first;
-    _w2 ??= DemoData.workers.length > 1 ? DemoData.workers[1] : DemoData.workers.first;
+    _w1 ??= Catalog.workers.first;
+    _w2 ??= Catalog.workers.length > 1 ? Catalog.workers[1] : Catalog.workers.first;
   }
 
   @override
@@ -107,10 +106,10 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
             invertHigher: true,
           ),
           _CompareRow(
-            label: 'الخبرة',
-            w1: '${_w1!.experienceYears} سنوات',
-            w2: '${_w2!.experienceYears} سنوات',
-            w1Better: _w1!.experienceYears > _w2!.experienceYears,
+            label: 'المهام المنجزة',
+            w1: '${_w1!.jobsCompleted} مهمة',
+            w2: '${_w2!.jobsCompleted} مهمة',
+            w1Better: _w1!.jobsCompleted > _w2!.jobsCompleted,
           ),
           _CompareRow(
             label: 'الموقع',

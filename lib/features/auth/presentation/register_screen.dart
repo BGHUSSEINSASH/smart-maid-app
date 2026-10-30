@@ -19,6 +19,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _referralCtrl = TextEditingController();
   AppRole _role = AppRole.customer;
   bool _obscure = true;
   bool _accepted = false;
@@ -29,6 +30,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmCtrl.dispose();
+    _referralCtrl.dispose();
     super.dispose();
   }
 
@@ -54,6 +56,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: _emailCtrl.text,
           password: _passCtrl.text,
           role: _role,
+          referralCode: _referralCtrl.text,
         );
     if (!mounted) return;
     if (ok) {
@@ -123,13 +126,53 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: 8),
+                AuthField(
+                  controller: _referralCtrl,
+                  label: 'كود الإحالة (اختياري)',
+                  icon: Icons.card_giftcard_rounded,
+                  action: TextInputAction.next,
+                ),
+                const SizedBox(height: 8),
                 CheckboxListTile(
                   value: _accepted,
                   onChanged: (v) => setState(() => _accepted = v ?? false),
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('أوافق على الشروط وسياسة الخصوصية',
-                      style: TextStyle(fontSize: 13)),
+                  title: Text.rich(
+                    TextSpan(
+                      style: const TextStyle(fontSize: 13),
+                      children: [
+                        const TextSpan(text: 'أوافق على '),
+                        WidgetSpan(
+                          child: GestureDetector(
+                            onTap: () => context.push('/legal/terms'),
+                            child: const Text(
+                              'الشروط والأحكام',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const TextSpan(text: ' و '),
+                        WidgetSpan(
+                          child: GestureDetector(
+                            onTap: () => context.push('/legal/privacy'),
+                            child: const Text(
+                              'سياسة الخصوصية',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -147,20 +190,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         auth.isLoading ? 'جارٍ الإنشاء...' : 'إنشاء الحساب'),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const AuthDivider(),
-                const SizedBox(height: 16),
-                SocialButton.google(
-                  onTap: auth.isLoading
-                      ? null
-                      : () async {
-                          final ok = await ref
-                              .read(authProvider.notifier)
-                              .signInWithGoogle();
-                          if (!context.mounted) return;
-                          if (ok) context.go('/');
-                        },
-                ),
               ],
             ),
           ),
@@ -170,10 +199,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Widget _roleSelector() {
-    final items = [
+    const items = [
       (AppRole.customer, '👤', 'عميل'),
       (AppRole.worker, '👩‍💼', 'عاملة'),
-      (AppRole.company, '🏢', 'شركة'),
     ];
     return Row(
       children: [
@@ -212,7 +240,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
           ),
-          if (role != AppRole.company) const SizedBox(width: 10),
+          if (role != AppRole.worker) const SizedBox(width: 10),
         ],
       ],
     );

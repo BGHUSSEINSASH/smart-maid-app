@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 
@@ -24,14 +24,16 @@ export function logAudit(action: string, description: string, userId?: string) {
   if (auditLog.length > 500) auditLog.length = 500;
 }
 
-router.get('/', requireAuth, (req: any, res) => {
-  const { page = '1', limit = '50' } = req.query;
-  const start = (Number(page) - 1) * Number(limit);
-  const sliced = auditLog.slice(start, start + Number(limit));
+// سجل التدقيق يحتوي بيانات مستخدمين — للإدارة فقط.
+router.get('/', requireAuth, requireRole('admin'), (req, res) => {
+  const page = Number(req.query.page ?? '1');
+  const limit = Math.min(200, Number(req.query.limit ?? '50'));
+  const start = (Math.max(1, page) - 1) * limit;
+  const sliced = auditLog.slice(start, start + limit);
   res.json({ entries: sliced, total: auditLog.length });
 });
 
-router.get('/action/:action', requireAuth, (req: any, res) => {
+router.get('/action/:action', requireAuth, requireRole('admin'), (req, res) => {
   const filtered = auditLog.filter((e) => e.action === req.params.action);
   res.json({ entries: filtered, total: filtered.length });
 });

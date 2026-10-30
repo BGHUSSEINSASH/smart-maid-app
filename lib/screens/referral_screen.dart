@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../core/theme/app_theme.dart';
+import '../providers/currency_provider.dart';
 import '../providers/loyalty_provider.dart';
 
 class ReferralScreen extends ConsumerWidget {
@@ -10,7 +12,9 @@ class ReferralScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final referral = ref.watch(referralProvider);
+    final currency = ref.watch(currencyProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final code = referral.code;
 
     return Scaffold(
       backgroundColor:
@@ -29,11 +33,11 @@ class ReferralScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Center(
+          Center(
             child: Text(
-              'يحصل صديقك على خصم \$10 لأول حجز،\nوتحصل أنت على +100 نقطة عند أول عملية مكتملة',
+              'يحصل صديقك على خصم ${currency.format(10)} لأول حجز،\nوتحصل أنت على +100 نقطة عند أول عملية مكتملة',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 13.5, height: 1.7, color: AppColors.muted),
             ),
           ),
@@ -60,7 +64,8 @@ class ReferralScreen extends ConsumerWidget {
                     border:
                         Border.all(color: Colors.white38, width: 1.2),
                   ),
-                  child: Text(referral.code,
+                  child: Text(
+                      code.isNotEmpty ? code : '—',
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -71,13 +76,15 @@ class ReferralScreen extends ConsumerWidget {
                 Row(children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: referral.code));
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('تم نسخ ${referral.code}'),
-                            behavior: SnackBarBehavior.floating));
-                      },
+                      onPressed: code.isEmpty
+                          ? null
+                          : () {
+                              Clipboard.setData(
+                                  ClipboardData(text: code));
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text('تم نسخ $code'),
+                                  behavior: SnackBarBehavior.floating));
+                            },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white54),
@@ -89,13 +96,15 @@ class ReferralScreen extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text:
-                            'استخدم كود ${referral.code} في تطبيق Smart Maid واحصل على خصم \$10 على أول حجز!'));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('تم تجهيز رسالة الدعوة للحفظ/المشاركة'),
-                            behavior: SnackBarBehavior.floating));
-                      },
+                      onPressed: code.isEmpty
+                          ? null
+                          : () async {
+                              // فتح ورقة المشاركة الحقيقية بدل النسخ فقط.
+                              await SharePlus.instance.share(ShareParams(
+                                text:
+                                    'استخدم كود $code في تطبيق شغّالتي واحصل على خصم ${currency.format(10)} على أول حجز!',
+                              ));
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: AppColors.primary,
@@ -112,17 +121,18 @@ class ReferralScreen extends ConsumerWidget {
           Row(children: [
             _StatCard(value: '${referral.invitedCount}', label: 'صديق انضم'),
             const SizedBox(width: 12),
-            _StatCard(value: '\$${referral.earnedUsd.toStringAsFixed(0)}',
+            _StatCard(
+                value: currency.format(referral.earnedUsd),
                 label: 'مكافآتك المكتسبة'),
           ]),
           const SizedBox(height: 22),
           const Text('كيف تعمل الإحالة؟',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
-          ...const [
+          ...[
             ('1', 'شارك كودك مع أصدقائك عبر أي وسيلة'),
             ('2', 'يسجل صديقك ويستخدم الكود في أول حجز'),
-            ('3', 'يحصل هو على خصم فوري \$10'),
+            ('3', 'يحصل هو على خصم فوري ${currency.format(10)}'),
             ('4', 'تحصل أنت على +100 نقطة بعد إتمام حجزه'),
           ].map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),

@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import '../core/ai/assistant_engine.dart';
+import '../core/api/api_client.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
 import '../data/repository.dart';
@@ -39,71 +38,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     ),
   ];
   bool _thinking = false;
-  bool _aiOnline = false;
-
-  static const aiBase = String.fromEnvironment(
-    'OLLAMA_URL',
-    defaultValue: 'http://localhost:11435',
-  );
-  static const aiKey = String.fromEnvironment('OLLAMA_PROXY_KEY');
-
-  @override
-  void initState() {
-    super.initState();
-    _probeAi();
-  }
-
-  Future<void> _probeAi() async {
-    try {
-      final res = await http
-          .get(
-            Uri.parse('$aiBase/api/tags'),
-            headers: {
-              if (aiKey.isNotEmpty) 'Authorization': 'Bearer $aiKey',
-            },
-          )
-          .timeout(const Duration(seconds: 2));
-      if (mounted) setState(() => _aiOnline = res.statusCode == 200);
-    } catch (_) {
-      if (mounted) setState(() => _aiOnline = false);
-    }
-  }
-
-  Future<String?> _askOllama(String prompt) async {
-    if (!_aiOnline) return null;
-    try {
-      final workersDesc = workersPool
-          .map((w) =>
-              '${w.id}: ${w.name} (${w.category}, ${w.rating}⭐, \$${w.hourlyRate}/س, ${w.location}${w.isAvailable ? ', متاحة' : ', مشغولة'})')
-          .join('\n');
-      final res = await http
-          .post(
-            Uri.parse('$aiBase/api/chat'),
-            headers: {
-              'Content-Type': 'application/json',
-              if (aiKey.isNotEmpty) 'Authorization': 'Bearer $aiKey',
-            },
-            body: jsonEncode({
-              'model': 'llama3',
-              'stream': false,
-              'messages': [
-                {
-                  'role': 'system',
-                  'content':
-                      'أنت مساعد حجوزات لتطبيق Smart Maid. اقترح من القائمة التالية أفضل عاملات لطلب المستخدم واذكر أسماءهن فقط مع سبب قصير:\n$workersDesc'
-                },
-                {'role': 'user', 'content': prompt},
-              ],
-            }),
-          )
-          .timeout(const Duration(seconds: 25));
-      if (res.statusCode == 200) {
-        final body = jsonDecode(utf8.decode(res.bodyBytes));
-        return body['message']?['content']?.toString();
-      }
-    } catch (_) {}
-    return null;
-  }
 
   Future<void> _send() async {
     final text = _ctrl.text.trim();
@@ -116,11 +50,14 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     _jumpBottom();
 
     final matches = matchWorkers(text);
-    // Prefer backend AI (Ollama with smart fallback), then direct Ollama,
-    // then local keyword engine — layered resilience.
-    final backendReply = await TrustRepository.askAi(text);
-    final aiReply = backendReply ?? await _askOllama(text);
-    final reply = aiReply ?? buildFallbackReply(text, matches);
+    // المساعد يعمل عبر خادمنا فقط (لا اتصال مباشر بأي نموذج من الهاتف)،
+    // وإن لم يكن النموذج مفعّلاً على الخادم تُستخدم مطابقة الكلمات المحلية.
+    String reply;
+    try {
+      reply = await TrustRepository.askAi(text);
+    } on ApiException {
+      reply = buildFallbackReply(text, matches);
+    }
 
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
@@ -170,12 +107,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             children: [
               const Text('المساعد',
                   style: TextStyle(fontSize: 15.5)),
-              Text(
-                _aiOnline ? 'متصل بنموذج محلي' : 'وضع المطابقة',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    color: _aiOnline ? AppColors.success : AppColors.muted),
-              ),
+              const Text(
+                    'وضع المطابقة',
+                    style: TextStyle(fontSize: 10.5, color: AppColors.muted),
+                ),
             ],
           ),
         ]),

@@ -1,14 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../providers/booking_provider.dart';
 import '../providers/currency_provider.dart';
 import '../widgets/app_image.dart';
-import 'completion_screen.dart';
+import 'conversation_screen.dart';
 
 class ActiveBookingScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
@@ -22,10 +20,7 @@ class ActiveBookingScreen extends ConsumerStatefulWidget {
 class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
     with SingleTickerProviderStateMixin {
   BookingModel? _live;
-  late Timer _timer;
   late AnimationController _pulseCtrl;
-  int _elapsed = 0;
-  int _etaSeconds = 12 * 60; // 12 minutes ETA
 
   BookingModel get b => _live ?? widget.booking;
 
@@ -36,19 +31,11 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _elapsed++;
-        if (_etaSeconds > 0) _etaSeconds--;
-      });
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
   }
 
   @override
   void dispose() {
-    _timer.cancel();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -59,42 +46,49 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
     if (found != null && mounted) setState(() => _live = found);
   }
 
-  void _markArrival() {
-    final updated = b.copyWith(arrivalTime: DateTime.now());
-    ref.read(myBookingsProvider.notifier).updateBooking(updated);
-    setState(() => _live = updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم تسجيل الوصول ✅'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  String get _statusLabel => switch (b.status) {
+        BookingStatus.pending => 'بانتظار قبول مقدّم الخدمة',
+        BookingStatus.confirmed => 'تم قبول الحجز',
+        BookingStatus.inProgress => 'الخدمة جارية الآن',
+        BookingStatus.completed => 'تم إتمام الخدمة',
+        BookingStatus.cancelled => 'حجز ملغى',
+      };
 
-  String _formatTime(int seconds) {
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
+  IconData get _statusIcon => switch (b.status) {
+        BookingStatus.pending => Icons.hourglass_empty_rounded,
+        BookingStatus.confirmed => Icons.check_circle_outline_rounded,
+        BookingStatus.inProgress => Icons.cleaning_services_rounded,
+        BookingStatus.completed => Icons.verified_rounded,
+        BookingStatus.cancelled => Icons.cancel_outlined,
+      };
 
-  String _etaLabel() {
-    if (b.arrivalTime != null) return 'تم الوصول';
-    if (_etaSeconds <= 0) return 'قريب الوصول';
-    return 'الوصول خلال ${_formatTime(_etaSeconds)}';
+  // انعكاس حقيقي لحالة الحجز بدل عدّاد وهمي.
+  double get _statusProgress {
+    switch (b.status) {
+      case BookingStatus.pending:
+        return 0.15;
+      case BookingStatus.confirmed:
+        return 0.4;
+      case BookingStatus.inProgress:
+        return 0.75;
+      case BookingStatus.completed:
+        return 1.0;
+      case BookingStatus.cancelled:
+        return 0.0;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final currency = ref.watch(currencyProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final progress = (_elapsed / 720).clamp(0.0, 0.85); // 12 min max
+    final progress = _statusProgress;
 
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       appBar: AppBar(
-        title: Text(b.arrivalTime != null ? 'الخدمة جارية' : 'تتبع العاملة'),
+        title: const Text('حالة الحجز'),
         automaticallyImplyLeading: false,
       ),
       body: ListView(
@@ -105,7 +99,7 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                AppAvatar(url: b.workerImage, radius: 30),
+                AppAvatar(url: b.workerImage, radius: 30, label: b.workerName),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -126,19 +120,15 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: b.arrivalTime != null
-                        ? AppColors.success.withValues(alpha: 0.1)
-                        : AppColors.primary.withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    b.arrivalTime != null ? 'في الموقع 📍' : 'في الطريق 🚗',
+                    _statusLabel,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
-                      color: b.arrivalTime != null
-                          ? AppColors.success
-                          : AppColors.primary,
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -147,185 +137,46 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
           ),
           const SizedBox(height: 20),
 
-          // Map placeholder with animated pin
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.surfaceDark
-                  : AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppColors.stroke),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
+          // حالة الحجز — لا تتبّع موقع وهمي.
+          SurfaceCard(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Grid pattern
-                ...List.generate(6, (i) {
-                  return Positioned(
-                    top: 20 + i * 30.0,
-                    left: 20,
-                    right: 20,
-                    child: Container(
-                      height: 1,
-                      color: AppColors.stroke.withValues(alpha: 0.5),
-                    ),
-                  );
-                }),
-                ...List.generate(8, (i) {
-                  return Positioned(
-                    left: 20 + i * 40.0,
-                    top: 20,
-                    bottom: 20,
-                    child: Container(
-                      width: 1,
-                      color: AppColors.stroke.withValues(alpha: 0.5),
-                    ),
-                  );
-                }),
-                // Animated pin
-                AnimatedBuilder(
-                  animation: _pulseCtrl,
-                  builder: (_, __) => Transform.translate(
-                    offset: Offset(0, -_pulseCtrl.value * 8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary
-                                    .withValues(alpha: 0.3 + _pulseCtrl.value * 0.2),
-                                blurRadius: 12 + _pulseCtrl.value * 8,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: AppAvatar(url: b.workerImage, radius: 16),
+                Row(
+                  children: [
+                    Icon(_statusIcon, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _statusLabel,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: context.ink,
                         ),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: AppColors.stroke,
+                    color: AppColors.primary,
                   ),
                 ),
-                // Progress bar at bottom
-                Positioned(
-                  bottom: 16,
-                  left: 20,
-                  right: 20,
-                  child: Column(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 6,
-                          backgroundColor: AppColors.stroke,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _etaLabel(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: b.arrivalTime != null
-                                  ? AppColors.success
-                                  : AppColors.primary,
-                            ),
-                          ),
-                          Text(
-                            '${(progress * 100).toInt()}%',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 10),
+                Text(
+                  'الموعد المجدول: ${b.timeSlot} — ${b.date.day}/${b.date.month}/${b.date.year}',
+                  style: TextStyle(fontSize: 12.5, color: context.mutedText),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-
-          // ETA countdown
-          if (b.arrivalTime == null && _etaSeconds > 0)
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: AppColors.heroGradient,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                children: [
-                  const Text('وقت الوصول المتوقع',
-                      style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatTime(_etaSeconds),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('العاملة في طريقها إليك',
-                      style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ],
-              ),
-            ),
-          if (b.arrivalTime != null)
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on_rounded,
-                      color: AppColors.success, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('تم الوصول في ${b.arrivalTime!.hour}:${b.arrivalTime!.minute.toString().padLeft(2, '0')}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.success)),
-                        const Text('الخدمة جارية الآن',
-                            style: TextStyle(
-                                fontSize: 12, color: AppColors.muted)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           const SizedBox(height: 20),
 
           // Booking details
@@ -348,41 +199,26 @@ class _ActiveBookingScreenState extends ConsumerState<ActiveBookingScreen>
           ),
           const SizedBox(height: 24),
 
-          // Action buttons
-          if (b.arrivalTime == null)
-            SizedBox(
-              height: 54,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                ),
-                onPressed: _markArrival,
-                icon: const Icon(Icons.location_on_rounded, size: 20),
-                label: const Text('وصلت الموقع',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-              ),
-            )
-          else
-            SizedBox(
-              height: 54,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CompletionScreen(booking: b),
+          // لا تُعرض إجراءات العاملة في حساب العميل.
+          SizedBox(
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ConversationScreen(
+                      bookingId: b.id,
+                      title: b.workerName,
+                      avatarUrl: b.workerImage,
                     ),
-                  );
-                },
-                icon: const Icon(Icons.task_alt_rounded, size: 20),
-                label: const Text('إنهاء المهمة',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-              ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
+              label: const Text('محادثة مقدّم الخدمة',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 50,

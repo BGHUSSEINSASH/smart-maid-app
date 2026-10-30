@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthedRequest } from '../middleware/auth';
+import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
+import { bookings, makeId, notifications, persist } from '../store';
 
 const router = Router();
 
@@ -15,38 +16,40 @@ export interface Dispute {
   createdAt: string;
 }
 
-const disputes: Dispute[] = [
-  {
-    id: 'd_4092',
-    bookingId: 'b_demo_1',
-    userId: 'u_customer_1',
-    category: 'تأخير',
-    subject: 'العاملة تأخرت ساعتين',
-    detail: 'وصلت العاملة متأخرة عن الموعد المحدد دون إشعار مسبق.',
-    status: 'open',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+const disputes: Dispute[] = [];
 
 const disputeSchema = z.object({
   bookingId: z.string().min(1),
-  category: z.string().min(2),
-  subject: z.string().min(3),
-  detail: z.string().min(10),
+  category: z.string().min(2).max(40),
+  subject: z.string().min(3).max(120),
+  detail: z.string().min(10).max(2000),
 });
 
-router.get('/', requireAuth, (req: any, res) => {
-  res.json({ disputes, total: disputes.length });
+/** المستخدم يرى نزاعاته فقط، والإدارة ترى الكل. */
+router.get('/', requireAuth, (req: AuthedRequest, res) => {
+  const list =
+    req.user!.role === 'admin'
+      ? disputes
+      : disputes.filter((d) => d.userId === req.user!.id);
+  res.json({ disputes: list, total: list.length });
 });
 
 router.post('/', requireAuth, (req: AuthedRequest, res) => {
   const parsed = disputeSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'بيانات غير صحيحة', details: parsed.error.issues });
+    res.status(400).json({ error: 'بيانات غير صحيحة' });
+    return;
+  }
+  const booking = bookings.find(
+    (b) => b.id === parsed.data.bookingId && b.userId === req.user!.id,
+  );
+  if (!booking) {
+    res.status(404).json({ error: 'حجز غير موجود' });
+    return;
   }
   const dispute: Dispute = {
-    id: `d_${Date.now()}`,
-    bookingId: parsed.data.bookingId,
+    id: makeId('d'),
+    bookingId: booking.id,
     userId: req.user!.id,
     category: parsed.data.category,
     subject: parsed.data.subject,
@@ -58,15 +61,39 @@ router.post('/', requireAuth, (req: AuthedRequest, res) => {
   res.status(201).json({ ok: true, dispute });
 });
 
-router.post('/:id/status', requireAuth, (req: any, res) => {
-  const dispute = disputes.find((d) => d.id === req.params.id);
-  if (!dispute) return res.status(404).json({ error: 'نزاع غير موجود' });
-  const status = String(req.body?.status ?? '');
-  if (!['open', 'reviewing', 'resolved'].includes(status)) {
-    return res.status(400).json({ error: 'حالة غير صحيحة' });
-  }
-  dispute.status = status as Dispute['status'];
-  res.json({ ok: true, dispute });
+const statusSchema = z.object({
+  status: z.enum(['open', 'reviewing', 'resolved']),
 });
+
+/** تغيير حالة النزاع — إدارة فقط. */
+router.post(
+  '/:id/status',
+  requireAuth,
+  requireRole('admin'),
+  (req: AuthedRequest, res) => {
+    const parsed = statusSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'حالة غير صحيحة' });
+      return;
+    }
+    const dispute = disputes.find((d) => d.id === req.params.id);
+    if (!dispute) {
+      res.status(404).json({ error: 'نزاع غير موجود' });
+      return;
+    }
+    dispute.status = parsed.data.status;
+    notifications.unshift({
+      id: makeId('n'),
+      userId: dispute.userId,
+      title: 'تحديث النزاع',
+      body: `حالة نزاعك الآن: ${parsed.data.status}`,
+      icon: '⚖️',
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+    persist();
+    res.json({ ok: true, dispute });
+  },
+);
 
 export default router;

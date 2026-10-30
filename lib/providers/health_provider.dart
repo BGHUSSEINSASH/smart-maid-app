@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_client.dart';
 
@@ -6,27 +5,28 @@ class BackendHealth {
   final bool reachable;
   final DateTime? checkedAt;
 
-  const BackendHealth({
-    required this.reachable,
-    this.checkedAt,
-  });
+  const BackendHealth({required this.reachable, this.checkedAt});
 }
 
-const BackendHealth _kUnknown = BackendHealth(reachable: true);
-
 class BackendHealthNotifier extends StateNotifier<BackendHealth> {
-  BackendHealthNotifier() : super(_kUnknown) {
-    if (!ApiClient.likelyReachable) return;
+  BackendHealthNotifier() : super(const BackendHealth(reachable: true)) {
+    // فحص واحد عند الإقلاع بدل الاستقصاء الدوري طوال عمر التطبيق.
     check();
-    Timer.periodic(const Duration(seconds: 30), (_) => check());
   }
 
   Future<void> check() async {
-    final res = await ApiClient.get('/health');
-    state = BackendHealth(
-      reachable: res != null && (res['status'] == 'ok'),
-      checkedAt: DateTime.now(),
-    );
+    try {
+      final res = await ApiClient.get(
+        '/health',
+        timeout: const Duration(seconds: 6),
+      );
+      state = BackendHealth(
+        reachable: res['status'] == 'ok',
+        checkedAt: DateTime.now(),
+      );
+    } on ApiException {
+      state = BackendHealth(reachable: false, checkedAt: DateTime.now());
+    }
   }
 }
 

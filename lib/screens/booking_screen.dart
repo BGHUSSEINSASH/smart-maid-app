@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../core/storage/local_store.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../data/models.dart';
 import '../providers/address_provider.dart';
 import '../providers/booking_provider.dart';
@@ -59,7 +59,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (flow.worker != null) return;
     final notifier = ref.read(bookingFlowProvider.notifier);
     if (d['workerId'] is String) {
-      final w = DemoData.byId(d['workerId'] as String);
+      final w = Catalog.byId(d['workerId'] as String);
       if (w != null) notifier.selectWorker(w);
     }
     if (d['dayOffset'] is int) _selectedDayOffset = d['dayOffset'] as int;
@@ -82,7 +82,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   void initState() {
     super.initState();
     if (widget.workerId != null) {
-      final w = DemoData.byId(widget.workerId!);
+      final w = Catalog.byId(widget.workerId!);
       if (w != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref.read(bookingFlowProvider.notifier).selectWorker(w);
@@ -144,10 +144,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (mounted) setState(() {});
   }
 
-  void _applyCoupon(double subtotal) {
-    final result = ref
+  Future<void> _applyCoupon(double subtotal) async {
+    final result = await ref
         .read(couponProvider.notifier)
         .apply(_couponCtrl.text, subtotal);
+    if (!mounted) return;
     if (result.ok) {
       ref.read(usedCouponFlagProvider.notifier).state = true;
     }
@@ -201,7 +202,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       ),
     );
     if (confirmed != true) return;
-    await confirmCurrentBooking(ref);
+    final result = await confirmCurrentBooking(ref);
+    if (!mounted) return;
+    if (!result.ok) {
+      _toast(result.error ?? 'تعذر إنشاء الحجز');
+      return;
+    }
     await LocalStore.clearBookingDraft();
     if (!mounted) return;
     Navigator.of(context).push(
@@ -249,10 +255,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               height: 132,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: DemoData.workers.length,
+                itemCount: Catalog.workers.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (context, i) {
-                  final w = DemoData.workers[i];
+                  final w = Catalog.workers[i];
                   final selected = flow.worker?.id == w.id;
                   return GestureDetector(
                     onTap: () {
@@ -350,7 +356,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: DemoData.timeSlots.map((t) {
+              children: Catalog.timeSlots.map((t) {
                 final disabled = _slotDisabled(t);
                 return ChoiceChip(
                   label: Text(t),
@@ -448,7 +454,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: DemoData.extraServices.map((e) {
+              children: Catalog.extraServices.map((e) {
                 final sel = flow.selectedExtras.contains(e.id);
                 return FilterChip(
                   avatar: Text(e.icon),
@@ -713,7 +719,6 @@ class _ContractTypeCard extends StatelessWidget {
           ('أسبوعي', 'وفّر 10%', Icons.date_range_rounded),
         BookingType.monthly =>
           ('شهري', 'وفّر 20%', Icons.calendar_month_rounded),
-        BookingType.annual => ('سنوي', 'وفّر 30%', Icons.workspace_premium_rounded),
       };
 
   @override

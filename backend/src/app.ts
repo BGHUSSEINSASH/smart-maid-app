@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import authRoutes from './routes/auth';
 import bookingRoutes from './routes/bookings';
+import chatRoutes from './routes/chat';
 import paymentRoutes, { stripeWebhookHandler } from './routes/payments';
 import workerRoutes from './routes/workers';
 import walletRoutes from './routes/wallet';
@@ -99,6 +100,7 @@ export function createServer(): express.Express {
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/workers', workerRoutes);
   app.use('/api/v1/bookings', bookingRoutes);
+  app.use('/api/v1/chat', chatRoutes);
   app.use('/api/v1/payments', paymentRoutes);
   app.use('/api/v1/wallet', walletRoutes);
   app.use('/api/v1/loyalty', loyaltyRoutes);

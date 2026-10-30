@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,112 +5,127 @@ import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
 import '../core/ui/time_format.dart';
+import '../data/models.dart';
+import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
+import '../widgets/app_image.dart';
 
+/// محادثة حجز واحدة: الرسائل من الخادم فقط، ولا ردود تلقائية.
 class ConversationScreen extends ConsumerStatefulWidget {
-  final String? conversationId;
-  final bool isSupport;
+  final String bookingId;
+  final String title;
+  final String avatarUrl;
 
-  const ConversationScreen({super.key, this.conversationId})
-      : isSupport = false;
-
-  const ConversationScreen.support({super.key})
-      : conversationId = null,
-        isSupport = true;
+  const ConversationScreen({
+    super.key,
+    required this.bookingId,
+    this.title = 'المحادثة',
+    this.avatarUrl = '',
+  });
 
   @override
-  ConsumerState<ConversationScreen> createState() =>
-      _ConversationScreenState();
-}
-
-class _ChatMsg {
-  final String senderId;
-  final String content;
-  final DateTime time;
-  _ChatMsg(this.senderId, this.content, this.time);
+  ConsumerState<ConversationScreen> createState() => _ConversationScreenState();
 }
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final _ctrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  bool _typing = false;
-  final List<_ChatMsg> _supportMessages = [];
-
-  String get _title =>
-      widget.isSupport ? 'دعم SmartMaid' : _convField((c) => c.worker.name);
-
-  String get _avatarUrl => widget.isSupport
-      ? 'https://i.pravatar.cc/150?img=13'
-      : _convField((c) => c.worker.imageUrl);
-
-  String _convField(String Function(dynamic c) f) {
-    for (final c in ref.read(chatProvider)) {
-      if (c.id == widget.conversationId) return f(c);
-    }
-    return '';
-  }
-
-  List<_ChatMsg> get _messages {
-    if (widget.isSupport) return _supportMessages;
-    for (final c in ref.watch(chatProvider)) {
-      if (c.id == widget.conversationId) {
-        return c.messages.map((m) => _ChatMsg(m.senderId, m.content, m.timestamp)).toList();
-      }
-    }
-    return const [];
-  }
+  bool _loading = true;
+  bool _sending = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isSupport && _supportMessages.isEmpty) {
-      _supportMessages.add(_ChatMsg(
-          'support', 'مرحباً بك في دعم شغالتي. كيف نساعدك اليوم؟', DateTime.now()));
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  void _send() {
-    final text = _ctrl.text.trim();
-    if (text.isEmpty) return;
-    _ctrl.clear();
-    HapticFeedback.lightImpact();
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
     setState(() {
-      if (widget.isSupport) {
-        _supportMessages.add(_ChatMsg('me', text, DateTime.now()));
-      } else {
-        ref
-            .read(chatProvider.notifier)
-            .sendMessage(widget.conversationId!, 'u1', text);
-      }
-      _typing = true;
+      _loading = true;
+      _error = null;
+    });
+    final error = await ref.read(chatProvider.notifier).load(widget.bookingId);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _error = error;
     });
     _jumpBottom();
-    Timer(const Duration(milliseconds: 1500), () {
-      if (!mounted) return;
-      setState(() {
-        _typing = false;
-        if (widget.isSupport) {
-          _supportMessages.add(_ChatMsg('support',
-              'شكراً لتواصلك! سيراجع فريقنا رسالتك ويرد عليك خلال دقائق 💜', DateTime.now()));
-        } else {
-          String workerId = 'w1';
-          for (final c in ref.read(chatProvider)) {
-            if (c.id == widget.conversationId) workerId = c.worker.id;
-          }
-          ref.read(chatProvider.notifier).sendMessage(
-              widget.conversationId!, workerId, 'تم استلام رسالتك، سأرد عليك في أقرب وقت 😊');
-        }
-      });
-      _jumpBottom();
-    });
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    final error =
+        await ref.read(chatProvider.notifier).send(widget.bookingId, text);
+    if (!mounted) return;
+    if (error != null) {
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
+    _ctrl.clear();
+    HapticFeedback.lightImpact();
+    setState(() => _sending = false);
+    _jumpBottom();
+  }
+
+  Future<void> _report() async {
+    final reasonCtrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('الإبلاغ عن محادثة'),
+        content: TextField(
+          controller: reasonCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'اذكر سبب الإبلاغ',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, reasonCtrl.text.trim()),
+            child: const Text('إرسال'),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || reason.length < 3) return;
+    final error =
+        await ref.read(chatProvider.notifier).report(widget.bookingId, reason);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(error ?? 'تم إرسال البلاغ، وتُراجع خلال 24 ساعة'),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: error == null ? AppColors.success : AppColors.error,
+    ));
   }
 
   void _jumpBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
-          _scrollCtrl.position.maxScrollExtent + 90,
-          duration: const Duration(milliseconds: 300),
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
@@ -120,7 +134,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final msgs = _messages;
+    final messages = ref.watch(chatProvider)[widget.bookingId] ?? const [];
 
     return Scaffold(
       backgroundColor: context.pageBg,
@@ -128,55 +142,79 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            AppAvatar(url: _avatarUrl, radius: 18),
+            AppAvatar(url: widget.avatarUrl, radius: 18, label: widget.title),
             const SizedBox(width: 10),
             Flexible(
-              child: Text(_title,
+              child: Text(widget.title,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'إبلاغ',
+            onPressed: _report,
+            icon: const Icon(Icons.flag_outlined),
+          ),
+        ],
       ),
       body: Column(
         children: [
-          Expanded(child: _buildMessages(msgs)),
+          Expanded(child: _buildBody(messages)),
           _buildInput(context),
         ],
       ),
     );
   }
 
-  Widget _buildMessages(List<_ChatMsg> msgs) {
+  Widget _buildBody(List<MessageModel> messages) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: _load,
+                child: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (messages.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'لا توجد رسائل بعد. اكتب رسالتك إلى مقدّم الخدمة.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.mutedText),
+          ),
+        ),
+      );
+    }
+    final myId = ref.read(authProvider).user?.id ?? '';
     return ListView.builder(
       controller: _scrollCtrl,
       padding: const EdgeInsets.all(16),
-      itemCount: msgs.length + (_typing ? 1 : 0),
+      itemCount: messages.length,
       itemBuilder: (context, i) {
-        if (_typing && i == msgs.length) {
-          return Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: context.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: context.stroke),
-              ),
-              child: Text('يكتب الآن...',
-                  style: TextStyle(fontSize: 12, color: context.mutedText)),
-            ),
-          );
-        }
-        final m = msgs[i];
-        final showDay = i == 0 || m.time.day != msgs[i - 1].time.day;
-        final mine = m.senderId == 'me' || m.senderId == 'u1';
+        final m = messages[i];
+        final showDay =
+            i == 0 || m.timestamp.day != messages[i - 1].timestamp.day;
         return Column(
           children: [
-            if (showDay) _dayChip(m.time, context),
-            _bubble(m, mine, context),
+            if (showDay) _dayChip(m.timestamp, context),
+            _bubble(m, m.senderId == myId, context),
           ],
         );
       },
@@ -200,7 +238,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     );
   }
 
-  Widget _bubble(_ChatMsg m, bool mine, BuildContext context) {
+  Widget _bubble(MessageModel m, bool mine, BuildContext context) {
     return GestureDetector(
       onLongPress: () {
         Clipboard.setData(ClipboardData(text: m.content));
@@ -235,7 +273,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                       height: 1.45,
                       color: mine ? Colors.white : context.ink)),
               const SizedBox(height: 4),
-              Text(DateFormat('HH:mm').format(m.time),
+              Text(DateFormat('HH:mm').format(m.timestamp),
                   style: TextStyle(
                       fontSize: 9.5,
                       color: mine ? Colors.white60 : AppColors.textHint)),
@@ -274,28 +312,17 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               ),
             ),
             IconButton(
-              onPressed: _send,
-              icon:
-                  const Icon(Icons.send_rounded, color: AppColors.primary),
+              onPressed: _sending ? null : _send,
+              icon: _sending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send_rounded, color: AppColors.primary),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class AppAvatar extends StatelessWidget {
-  final String url;
-  final double radius;
-  const AppAvatar({super.key, required this.url, this.radius = 24});
-  @override
-  Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor:
-          context.isDark ? Colors.white10 : const Color(0xFFE9EDF7),
-      backgroundImage: NetworkImage(url),
     );
   }
 }

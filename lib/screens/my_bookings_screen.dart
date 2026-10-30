@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_theme.dart';
 import '../data/models.dart';
+import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/review_provider.dart';
@@ -10,11 +11,22 @@ import 'invoice_screen.dart';
 import 'payment_screen.dart';
 import 'booking_detail_screen.dart';
 
-class MyBookingsScreen extends ConsumerWidget {
+class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => refreshBookings(ref));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final bookings = ref.watch(myBookingsProvider);
     final upcoming = bookings
         .where((b) =>
@@ -145,7 +157,8 @@ class _List extends ConsumerWidget {
                         ref.read(reviewsProvider.notifier).addReview(
                               workerId: b.workerId,
                               reviewerName: 'أنت',
-                              reviewerImage: 'https://i.pravatar.cc/150?img=68',
+                              reviewerImage:
+                                  ref.read(authProvider).user?.imageUrl ?? '',
                               rating: rating,
                               comment: ctrl.text.trim(),
                             );

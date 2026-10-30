@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api/api_client.dart';
 import '../core/storage/local_store.dart';
 import '../data/models.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
+import 'auth_provider.dart';
 import 'offers_provider.dart';
-import 'loyalty_provider.dart';
-import 'notifications_provider.dart';
 
 class BookingFlowState {
   final WorkerModel? worker;
@@ -80,12 +80,10 @@ class BookingFlowState {
         return h * 8 * 5 * 0.9;
       case BookingType.monthly:
         return h * 8 * 22 * 0.8;
-      case BookingType.annual:
-        return h * 8 * 22 * 11 * 0.7;
     }
   }
 
-  double get extrasTotal => DemoData.extraServices
+  double get extrasTotal => Catalog.extraServices
       .where((e) => selectedExtras.contains(e.id))
       .fold(0.0, (sum, e) => sum + e.priceUsd);
 
@@ -105,8 +103,6 @@ class BookingFlowState {
         return 'أسبوعي';
       case BookingType.monthly:
         return 'شهري';
-      case BookingType.annual:
-        return 'سنوي';
     }
   }
 }
@@ -165,10 +161,17 @@ final bookingFlowProvider =
     );
 
 class MyBookingsNotifier extends StateNotifier<List<BookingModel>> {
-  MyBookingsNotifier() : super(LocalStore.bookingsCache ?? DemoData.bookings);
+  // حساب جديد بلا حجوزات وهمية — الحجوزات تظهر بعد إنشائها فعلاً.
+  MyBookingsNotifier() : super(LocalStore.bookingsCache ?? const []);
 
   void add(BookingModel b) {
     state = [b, ...state];
+    LocalStore.persistBookings(state);
+  }
+
+  /// يستبدل الكاش المحلي بقائمة الخادم (الكاش للعرض دون اتصال فقط).
+  void replaceAll(List<BookingModel> list) {
+    state = list;
     LocalStore.persistBookings(state);
   }
 
@@ -229,49 +232,130 @@ final bookingTotalsProvider = Provider<BookingTotals>((ref) {
   );
 });
 
-typedef BookingResult = ({bool ok, String bookingId});
+typedef BookingResult = ({bool ok, String bookingId, String? error});
 
+/// يحوّل خانة الوقت العربية ("10:00 صباحاً") إلى ساعة 24.
+int slotHour(String slot) {
+  final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(slot);
+  if (match == null) return 9;
+  var hour = int.tryParse(match.group(1)!) ?? 9;
+  final isPm = slot.contains('مساء');
+  final isNoon = slot.contains('ظهراً');
+  if (isNoon && hour < 12) hour = 12;
+  if (isPm && hour < 12) hour += 12;
+  return hour.clamp(0, 23);
+}
+
+/// ينشئ الحجز على الخادم فعلياً. لا يوجد أي نجاح محلي وهمي:
+/// عند الفشل يُعاد الخطأ ليُعرض للمستخدم.
 Future<BookingResult> confirmCurrentBooking(WidgetRef ref) async {
   final flow = ref.read(bookingFlowProvider);
   final totals = ref.read(bookingTotalsProvider);
   if (!flow.hasBooking || flow.date == null || flow.timeSlot == null) {
-    return (ok: false, bookingId: '');
+    return (ok: false, bookingId: '', error: 'أكمل بيانات الحجز أولاً');
   }
-  final id = 'b_${DateTime.now().millisecondsSinceEpoch}';
-  final booking = BookingModel(
-    id: id,
-    workerId: flow.worker!.id,
-    workerName: flow.worker!.name,
-    workerImage: flow.worker!.imageUrl,
-    userId: 'u1',
-    date: flow.date!,
-    timeSlot: flow.timeSlot!,
-    service: flow.worker!.category,
-    total: totals.total,
-    status: BookingStatus.pending,
-    paymentStatus: PaymentStatus.held,
-    notes: flow.notes,
-    expressFee: flow.expressFee,
-    needTools: flow.needTools,
+  final worker = flow.worker!;
+  final scheduled = DateTime(
+    flow.date!.year,
+    flow.date!.month,
+    flow.date!.day,
+    slotHour(flow.timeSlot!),
   );
-  ref.read(myBookingsProvider.notifier).add(booking);
-  ref.read(bookingFlowProvider.notifier).setFromBooking({
-    'id': id,
-    'status': 'pending',
-    'paymentStatus': 'unpaid',
-  });
-  ref.read(notificationsProvider.notifier).addNotification(
-        AppNotification(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          title: 'تم إنشاء حجزك',
-          icon: '📌',
-          body:
-              'حجزك مع ${flow.worker!.name} يوم ${booking.date.day}/${booking.date.month} الساعة ${flow.timeSlot}',
-          time: DateTime.now(),
-        ),
-      );
-  ref
-      .read(loyaltyProvider.notifier)
-      .earn(totals.total.round(), 'حجز ${flow.bookingTypeLabel}');
-  return (ok: true, bookingId: id);
+
+  try {
+    final res = await ApiClient.post('/bookings', {
+      'workerId': worker.id,
+      'contractType': switch (flow.bookingType) {
+        BookingType.daily => 'daily',
+        BookingType.weekly => 'weekly',
+        BookingType.monthly => 'monthly',
+      },
+      'hours': switch (flow.bookingType) {
+        BookingType.daily => 8,
+        BookingType.weekly => 8,
+        BookingType.monthly => 8,
+      },
+      'scheduledFor': scheduled.toIso8601String(),
+      'notes': flow.notes,
+      'paymentMethod': 'cash',
+    });
+
+    final id = res['id']?.toString() ?? '';
+    if (id.isEmpty) {
+      return (ok: false, bookingId: '', error: 'استجابة غير صالحة من الخادم');
+    }
+
+    final booking = BookingModel(
+      id: id,
+      workerId: worker.id,
+      workerName: worker.name,
+      workerImage: worker.imageUrl,
+      userId: ref.read(authProvider).user?.id ?? '',
+      date: scheduled,
+      timeSlot: flow.timeSlot!,
+      service: worker.category,
+      total: (res['total'] as num?)?.toDouble() ?? totals.total,
+      status: BookingStatus.pending,
+      paymentStatus: PaymentStatus.unpaid,
+      notes: flow.notes,
+    );
+    ref.read(myBookingsProvider.notifier).add(booking);
+    ref.read(bookingFlowProvider.notifier).setFromBooking({
+      'id': id,
+      'status': 'pending',
+      'paymentStatus': 'unpaid',
+    });
+    return (ok: true, bookingId: id, error: null);
+  } on ApiException catch (e) {
+    return (ok: false, bookingId: '', error: e.message);
+  }
+}
+
+/// يحمل حجوزات المستخدم من الخادم ويستبدل الكاش المحلي.
+Future<String?> refreshBookings(WidgetRef ref) async {
+  try {
+    final res = await ApiClient.get('/bookings');
+    final list = (res['bookings'] as List?) ?? const [];
+    final bookings = list
+        .whereType<Map<String, dynamic>>()
+        .map(bookingFromApi)
+        .toList();
+    ref.read(myBookingsProvider.notifier).replaceAll(bookings);
+    return null;
+  } on ApiException catch (e) {
+    return e.message;
+  }
+}
+
+BookingModel bookingFromApi(Map<String, dynamic> json) {
+  final worker = Catalog.byId(json['workerId']?.toString() ?? '');
+  final scheduled =
+      DateTime.tryParse(json['scheduledFor']?.toString() ?? '') ??
+          DateTime.now();
+  final status = switch (json['status']?.toString()) {
+    'accepted' => BookingStatus.confirmed,
+    'completed' => BookingStatus.completed,
+    'cancelled' || 'rejected' => BookingStatus.cancelled,
+    _ => BookingStatus.pending,
+  };
+  final payment = switch (json['paymentStatus']?.toString()) {
+    'paid' => PaymentStatus.paid,
+    'refunded' => PaymentStatus.refunded,
+    _ => PaymentStatus.unpaid,
+  };
+  return BookingModel(
+    id: json['id']?.toString() ?? '',
+    workerId: json['workerId']?.toString() ?? '',
+    workerName: worker?.name ?? 'خدمة منزلية',
+    workerImage: worker?.imageUrl ?? '',
+    userId: json['userId']?.toString() ?? '',
+    date: scheduled,
+    timeSlot: '${scheduled.hour.toString().padLeft(2, '0')}:'
+        '${scheduled.minute.toString().padLeft(2, '0')}',
+    service: worker?.category ?? '',
+    total: (json['total'] as num?)?.toDouble() ?? 0,
+    status: status,
+    paymentStatus: payment,
+    notes: json['notes']?.toString() ?? '',
+  );
 }

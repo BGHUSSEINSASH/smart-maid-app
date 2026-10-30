@@ -19,44 +19,7 @@ class AppNotification {
 }
 
 class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
-  NotificationsNotifier()
-    : super([
-        AppNotification(
-          id: 'n1',
-          title: 'تم تأكيد حجزك',
-          icon: '✅',
-          body: 'حجزك مع روزا فيرنانديز غداً الساعة 10:00 صباحاً',
-          time: DateTime.now().subtract(const Duration(minutes: 5)),
-        ),
-        AppNotification(
-          id: 'n2',
-          title: 'عرض خاص لك',
-          icon: '🎁',
-          body: 'احصل على خصم 15% على حجزك القادم باستخدام SAVE15',
-          time: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        AppNotification(
-          id: 'n3',
-          title: 'تقييم خدمتك',
-          icon: '⭐',
-          body: 'كيف كانت تجربتك مع العاملة؟ شاركينا رأيك',
-          time: DateTime.now().subtract(const Duration(hours: 5)),
-        ),
-        AppNotification(
-          id: 'n4',
-          title: 'نقاط مكافأة',
-          icon: '🎖️',
-          body: 'حصلتِ على 50 نقطة من آخر حجز. رصيدك الآن 120 نقطة',
-          time: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-        AppNotification(
-          id: 'n5',
-          title: 'عاملة جديدة متاحة',
-          icon: '👩',
-          body: 'سونيا ميندوزا أصبحت متاحة في منطقتك',
-          time: DateTime.now().subtract(const Duration(days: 2)),
-        ),
-      ]);
+  NotificationsNotifier() : super(const []);
 
   void markAllRead() {
     state = state.map((n) => n..read = true).toList();

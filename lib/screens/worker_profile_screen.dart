@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../widgets/app_image.dart';
 import '../core/nav/app_nav.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../providers/booking_provider.dart';
-import '../providers/chat_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/review_provider.dart';
@@ -33,9 +30,12 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
   }
 
   void _openChat() {
-    ref.read(chatProvider.notifier).startConversation(widget.worker, 'u1');
+    // لا محادثة قبل الحجز: الخادم يفتح المحادثة ضمن الحجز فقط.
     Haptics.light();
-    context.push('/chat');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('تُفتح المحادثة مع العاملة بعد إنشاء حجز.'),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   @override
@@ -44,10 +44,9 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     final favorites = ref.watch(favoritesProvider);
     ref.watch(reviewsProvider);
     final reviews = ref.read(reviewsProvider.notifier);
-    final availability = ref.watch(workerAvailabilityProvider);
     final workerReviews = reviews.forWorker(widget.worker.id);
     final isFav = favorites.contains(widget.worker.id);
-    final isAvailable = availability[widget.worker.id] ?? widget.worker.isAvailable;
+    final isAvailable = widget.worker.isAvailable;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.surfaceDark : Colors.white;
 
@@ -189,9 +188,10 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  CircleAvatar(
+                                  AppAvatar(
+                                      url: r.reviewerImage,
                                       radius: 19,
-                                      backgroundImage: NetworkImage(r.reviewerImage)),
+                                      label: r.reviewerName),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -252,7 +252,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: similar.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
                           itemBuilder: (context, i) {
                             final w = similar[i];
                             return GestureDetector(

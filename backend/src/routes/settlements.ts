@@ -1,67 +1,60 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
+import { bookings, workers } from '../store';
 
 const router = Router();
 
-const settlements: Map<string, {
-  workerId: string;
-  month: string;
-  totalEarnings: number;
-  platformFee: number;
-  netPayout: number;
-  bookingsCount: number;
-  settledAt: Date;
-}> = new Map();
+/**
+ * المستحقات تُحسب من الحجوزات المكتملة الفعلية للعاملة — لا بيانات مُختلقة.
+ * عمولة المنصة قابلة للضبط من متغيرات البيئة.
+ */
+const PLATFORM_FEE_RATE = Number(process.env.PLATFORM_FEE_RATE ?? 0.2);
 
-// Seed demo data
-const demoWorkerId = 'cw1';
-const now = new Date();
-for (let i = 0; i < 3; i++) {
-  const d = new Date(now);
-  d.setMonth(d.getMonth() - i);
-  const key = `${demoWorkerId}_${d.toISOString().slice(0, 7)}`;
-  const total = 1200 + Math.round(Math.random() * 600);
-  const fee = Math.round(total * 0.20);
-  settlements.set(key, {
-    workerId: demoWorkerId,
-    month: d.toISOString().slice(0, 7),
-    totalEarnings: total,
-    platformFee: fee,
-    netPayout: total - fee,
-    bookingsCount: 8 + i * 2,
-    settledAt: new Date(d.getFullYear(), d.getMonth() + 1, 0),
-  });
-}
-
-router.get('/:month', requireAuth, (req: any, res) => {
-  const { month } = req.params;
-  const workerId = req.user.id;
-  const key = `${workerId}_${month}`;
-  const record = settlements.get(key);
-
-  if (!record) {
-    return res.json({
+function settlementFor(userId: string, month: string) {
+  const profile = workers.find((w) => w.userId === userId);
+  if (!profile) {
+    return {
       month,
       totalEarnings: 0,
       platformFee: 0,
       netPayout: 0,
       bookingsCount: 0,
       settled: false,
-    });
+    };
   }
+  const monthBookings = bookings.filter(
+    (b) =>
+      b.workerId === profile.id &&
+      b.status === 'completed' &&
+      b.scheduledFor.startsWith(month),
+  );
+  const total = monthBookings.reduce((sum, b) => sum + b.total, 0);
+  const fee = Math.round(total * PLATFORM_FEE_RATE * 100) / 100;
+  return {
+    month,
+    totalEarnings: total,
+    platformFee: fee,
+    netPayout: Math.round((total - fee) * 100) / 100,
+    bookingsCount: monthBookings.length,
+    settled: monthBookings.length > 0,
+  };
+}
 
-  res.json({
-    ...record,
-    settled: true,
-  });
+router.get('/history', requireAuth, requireRole('worker'), (req: AuthedRequest, res) => {
+  const months = new Set(
+    bookings.map((b) => b.scheduledFor.slice(0, 7)).filter(Boolean),
+  );
+  const current = new Date().toISOString().slice(0, 7);
+  months.add(current);
+  const records = [...months]
+    .sort((a, b) => b.localeCompare(a))
+    .map((month) => settlementFor(req.user!.id, month))
+    .filter((r) => r.bookingsCount > 0);
+  res.json({ records, total: records.length });
 });
 
-router.get('/history', requireAuth, (req: any, res) => {
-  const workerId = req.user.id;
-  const records = Array.from(settlements.values())
-    .filter((s) => s.workerId === workerId)
-    .sort((a, b) => b.month.localeCompare(a.month));
-  res.json({ records, total: records.length });
+router.get('/:month', requireAuth, requireRole('worker'), (req: AuthedRequest, res) => {
+  res.json(settlementFor(req.user!.id, String(req.params.month)));
 });
 
 export default router;

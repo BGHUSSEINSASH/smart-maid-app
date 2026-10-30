@@ -66,25 +66,9 @@ class LoyaltyState {
 class LoyaltyNotifier extends StateNotifier<LoyaltyState> {
   LoyaltyNotifier()
       : super(LoyaltyState(
-          points: LocalStore.loyaltyPointsCache ?? 1250,
-          history: LocalStore.loyaltyHistCache ??
-              [
-                (
-                  title: 'حجز تنظيف عميق',
-                  points: 120,
-                  date: DateTime.now().subtract(const Duration(days: 3)),
-                ),
-                (
-                  title: 'مكافأة تقييم 5 نجوم',
-                  points: 50,
-                  date: DateTime.now().subtract(const Duration(days: 7)),
-                ),
-                (
-                  title: 'حجز شهري مع فاطمة الحسن',
-                  points: 480,
-                  date: DateTime.now().subtract(const Duration(days: 14)),
-                ),
-              ],
+          // حساب جديد بلا نقاط ولا سجل وهمي.
+          points: LocalStore.loyaltyPointsCache ?? 0,
+          history: LocalStore.loyaltyHistCache ?? const [],
         ));
 
   void earn(int basePoints, String title) {
@@ -118,6 +102,13 @@ class LoyaltyNotifier extends StateNotifier<LoyaltyState> {
     LocalStore.persistLoyalty(next.points, next.history);
     return true;
   }
+
+  /// مزامنة الرصيد مع رصيد الخادم بعد عملية استبدال حقيقية.
+  void setPoints(int points) {
+    final next = state.copyWith(points: points.clamp(0, 1 << 31));
+    state = next;
+    LocalStore.persistLoyalty(next.points, next.history);
+  }
 }
 
 final loyaltyProvider = StateNotifierProvider<LoyaltyNotifier, LoyaltyState>(
@@ -130,9 +121,9 @@ class ReferralState {
   final double earnedUsd;
 
   const ReferralState({
-    this.code = 'SMART-AHMAD-24',
-    this.invitedCount = 4,
-    this.earnedUsd = 20,
+    this.code = '',
+    this.invitedCount = 0,
+    this.earnedUsd = 0,
   });
 }
 

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import bcrypt from 'bcryptjs';
 
 export type AppRole = 'customer' | 'worker' | 'admin' | 'company';
@@ -6,117 +8,50 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password: string;
-  passwordHash?: string;
   role: AppRole;
+  passwordHash: string;
+  phone?: string;
+  suspended?: boolean;
+  suspendReason?: string;
+  createdAt: string;
 }
 
 export interface Worker {
   id: string;
+  userId?: string;
   name: string;
-  image: string;
-  rating: number;
+  city: string;
+  category: string;
   experienceYears: number;
   hourlyRate: number;
+  bio: string;
+  available: boolean;
 }
 
 export interface Booking {
   id: string;
   userId: string;
   workerId: string;
-  contractType: 'hourly' | 'daily' | 'monthly';
+  contractType: 'hourly' | 'daily' | 'weekly' | 'monthly';
   hours: number;
+  scheduledFor: string;
+  addressId?: string;
   notes?: string;
   total: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
-  paymentStatus: 'pending' | 'processing' | 'succeeded' | 'failed';
+  paymentMethod: 'cash' | 'card';
+  status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
+  paymentStatus: 'unpaid' | 'paid' | 'refunded';
   paymentIntentId?: string;
   createdAt: string;
 }
 
-async function hashSeedPasswords(): Promise<void> {
-  for (const u of users) {
-    if (!u.passwordHash) {
-      u.passwordHash = await bcrypt.hash(u.password, 10);
-    }
-  }
+export interface ChatMessage {
+  id: string;
+  bookingId: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
 }
-
-export const users: User[] = [
-  {
-    id: 'u_customer_1',
-    name: 'Demo User',
-    email: 'user@example.com',
-    password: 'Passw0rd!',
-    role: 'customer',
-  },
-  {
-    id: 'u_worker_1',
-    name: 'Demo Worker',
-    email: 'worker@example.com',
-    password: 'Passw0rd!',
-    role: 'worker',
-  },
-  {
-    id: 'u_admin_1',
-    name: 'Demo Admin',
-    email: 'admin@example.com',
-    password: 'Passw0rd!',
-    role: 'admin',
-  },
-  {
-    id: 'u_company_1',
-    name: 'Ideal Cleaning Co.',
-    email: 'company@example.com',
-    password: 'Passw0rd!',
-    role: 'company',
-  },
-];
-
-export const workers: Worker[] = [
-  {
-    id: 'w1',
-    name: 'ماريا سانتوس',
-    image: 'https://i.pravatar.cc/160?img=47',
-    rating: 4.9,
-    experienceYears: 7,
-    hourlyRate: 32,
-  },
-  {
-    id: 'w2',
-    name: 'آنا كوفالسكي',
-    image: 'https://i.pravatar.cc/160?img=49',
-    rating: 4.8,
-    experienceYears: 6,
-    hourlyRate: 29,
-  },
-  {
-    id: 'w3',
-    name: 'نور خليل',
-    image: 'https://i.pravatar.cc/160?img=50',
-    rating: 4.7,
-    experienceYears: 5,
-    hourlyRate: 27,
-  },
-  {
-    id: 'w4',
-    name: 'فاطمة الحسن',
-    image: 'https://i.pravatar.cc/160?img=48',
-    rating: 4.8,
-    experienceYears: 5,
-    hourlyRate: 30,
-  },
-  {
-    id: 'w5',
-    name: 'لينا رودريغيز',
-    image: 'https://i.pravatar.cc/160?img=51',
-    rating: 4.8,
-    experienceYears: 6,
-    hourlyRate: 35,
-  },
-];
-
-export const bookings: Booking[] = [];
 
 export interface WalletTransaction {
   id: string;
@@ -127,62 +62,37 @@ export interface WalletTransaction {
   createdAt: string;
 }
 
-export const walletTransactions: WalletTransaction[] = [];
-
-export const walletBalances = new Map<string, number>([
-  ['u_customer_1', 250.0],
-  ['u_worker_1', 80.0],
-]);
-
-export function getWalletBalance(userId: string): number {
-  const txSum = walletTransactions
-    .filter((t) => t.userId === userId)
-    .reduce((sum, t) => sum + t.amount, 0);
-  const seed = walletBalances.get(userId) ?? 0;
-  return seed + txSum;
-}
-
 export interface LoyaltyRecord {
   points: number;
   history: { title: string; points: number; at: string }[];
 }
-
-export const loyaltyByUser = new Map<string, LoyaltyRecord>([
-  ['u_customer_1', { points: 1250, history: [] }],
-]);
 
 export interface Coupon {
   code: string;
   title: string;
   discountPercent: number;
   minTotal: number;
+  firstBookingOnly?: boolean;
 }
 
-export const coupons: Coupon[] = [
-  { code: 'SMART50', title: 'خصم النصف', discountPercent: 50, minTotal: 50 },
-  { code: 'SAVE15', title: 'وفّر 15%', discountPercent: 15, minTotal: 30 },
-  { code: 'MONTHLY10', title: 'باقة الشهر', discountPercent: 10, minTotal: 200 },
-];
+export interface LoyaltyCoupon {
+  code: string;
+  userId: string;
+  discountPercent: number;
+  minTotal: number;
+  used: boolean;
+  createdAt: string;
+}
 
 export interface Review {
   id: string;
   workerId: string;
   userId: string;
+  bookingId: string;
   rating: number;
   comment: string;
   createdAt: string;
 }
-
-export const reviews: Review[] = [
-  {
-    id: 'r1',
-    workerId: 'w1',
-    userId: 'u_customer_1',
-    rating: 5,
-    comment: 'ممتازة جداً! المنزل نظيف بشكل رائع.',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 export interface Address {
   id: string;
@@ -192,8 +102,6 @@ export interface Address {
   details: string;
   isDefault: boolean;
 }
-
-export const addresses: Address[] = [];
 
 export interface AppNotification {
   id: string;
@@ -205,16 +113,252 @@ export interface AppNotification {
   createdAt: string;
 }
 
-export const notifications: AppNotification[] = [];
+// ─────────────────────────────────────────────────────────────
+// Persistence
+// ─────────────────────────────────────────────────────────────
+// البيانات تُحفظ في ملف JSON داخل مجلد البيانات، فتبقى بعد إعادة
+// التشغيل أو إعادة النشر. على منصات بلا قرص دائم (Vercel serverless)
+// اضبط DATA_FILE على قرص دائم أو استبدل هذا الملف بقاعدة بيانات.
+const dataFile =
+  process.env.DATA_FILE ?? path.join(process.cwd(), 'data', 'db.json');
 
-export function makeToken(user: User): string {
-  return `demo-token-${user.id}`;
+interface Snapshot {
+  users: User[];
+  workers: Worker[];
+  bookings: Booking[];
+  messages: ChatMessage[];
+  walletTransactions: WalletTransaction[];
+  loyalty: Record<string, LoyaltyRecord>;
+  loyaltyCoupons: LoyaltyCoupon[];
+  reviews: Review[];
+  addresses: Address[];
+  notifications: AppNotification[];
 }
 
-/// رموز إعادة تعيين كلمة المرور المؤقتة (بريد -> رمز).
-export const passwordResetCodes = new Map<string, string>();
+export let users: User[] = [];
+export let workers: Worker[] = [];
+export let bookings: Booking[] = [];
+export let messages: ChatMessage[] = [];
+export let walletTransactions: WalletTransaction[] = [];
+export const loyaltyByUser = new Map<string, LoyaltyRecord>();
+export let loyaltyCoupons: LoyaltyCoupon[] = [];
+export let reviews: Review[] = [];
+export let addresses: Address[] = [];
+export let notifications: AppNotification[] = [];
 
-/// ينشئ مستخدماً جديداً ويخزّن كلمة المرور مجزّأة.
+export const coupons: Coupon[] = [
+  { code: 'SMART50', title: 'خصم النصف', discountPercent: 50, minTotal: 50 },
+  { code: 'SAVE15', title: 'وفّر 15%', discountPercent: 15, minTotal: 30 },
+  {
+    code: 'MONTHLY10',
+    title: 'باقة الشهر',
+    discountPercent: 10,
+    minTotal: 200,
+    firstBookingOnly: true,
+  },
+];
+
+export const MAX_BOOKING_AMOUNT = Number(
+  process.env.MAX_BOOKING_AMOUNT ?? 2000,
+);
+
+function emptySnapshot(): Snapshot {
+  return {
+    users: [],
+    workers: [],
+    bookings: [],
+    messages: [],
+    walletTransactions: [],
+    loyalty: {},
+    loyaltyCoupons: [],
+    reviews: [],
+    addresses: [],
+    notifications: [],
+  };
+}
+
+function readSnapshot(): Snapshot {
+  try {
+    const raw = fs.readFileSync(dataFile, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<Snapshot>;
+    return { ...emptySnapshot(), ...parsed };
+  } catch {
+    return emptySnapshot();
+  }
+}
+
+function applySnapshot(snapshot: Snapshot): void {
+  users = snapshot.users ?? [];
+  workers = snapshot.workers ?? [];
+  bookings = snapshot.bookings ?? [];
+  messages = snapshot.messages ?? [];
+  walletTransactions = snapshot.walletTransactions ?? [];
+  reviews = snapshot.reviews ?? [];
+  addresses = snapshot.addresses ?? [];
+  notifications = snapshot.notifications ?? [];
+  loyaltyCoupons = snapshot.loyaltyCoupons ?? [];
+  loyaltyByUser.clear();
+  for (const [userId, record] of Object.entries(snapshot.loyalty ?? {})) {
+    loyaltyByUser.set(userId, record);
+  }
+}
+
+/** يحفظ كل البيانات على القرص. يُستدعى بعد أي عملية كتابة. */
+export function persist(): void {
+  const snapshot: Snapshot = {
+    users,
+    workers,
+    bookings,
+    messages,
+    walletTransactions,
+    loyalty: Object.fromEntries(loyaltyByUser),
+    loyaltyCoupons,
+    reviews,
+    addresses,
+    notifications,
+  };
+  try {
+    fs.mkdirSync(path.dirname(dataFile), { recursive: true });
+    const tmp = `${dataFile}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(snapshot, null, 2), 'utf8');
+    fs.renameSync(tmp, dataFile);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to persist database:', error);
+  }
+}
+
+/** يشغّل بيانات أولية للتطوير المحلي فقط — لا في الإنتاج. */
+function seedDevelopmentData(): void {
+  if (process.env.NODE_ENV === 'production') return;
+  if (users.length > 0) return;
+
+  const devPassword = process.env.DEV_SEED_PASSWORD;
+  if (!devPassword) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      'No DEV_SEED_PASSWORD set — skipping demo accounts. Register through the API instead.',
+    );
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const seed: Array<[string, string, AppRole]> = [
+    ['customer@example.com', 'عميل تجريبي', 'customer'],
+    ['worker@example.com', 'عاملة تجريبية', 'worker'],
+    ['company@example.com', 'شركة تنظيف', 'company'],
+  ];
+  for (const [email, name, role] of seed) {
+    users.push({
+      id: `u_${role}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      email,
+      role,
+      passwordHash: bcrypt.hashSync(devPassword, 10),
+      createdAt: now,
+    });
+  }
+  if (!users.some((u) => u.role === 'admin')) {
+    users.push({
+      id: 'u_admin_dev',
+      name: 'إدارة المنصة',
+      email: 'admin@example.com',
+      role: 'admin',
+      passwordHash: bcrypt.hashSync(devPassword, 10),
+      createdAt: now,
+    });
+  }
+}
+
+function seedWorkers(): void {
+  if (workers.length > 0) return;
+  // كتالوج العاملات يُدار من لوحة الإدارة؛ لا تقييمات ولا صور مُختلقة.
+  workers = [
+    {
+      id: 'w_cleaning_1',
+      name: 'فريق التنظيف المنزلي',
+      city: 'الرياض',
+      category: 'تنظيف منزلي',
+      experienceYears: 0,
+      hourlyRate: 25,
+      bio: 'تنظيف شامل للمنزل: غرف، مطبخ، حمّامات.',
+      available: true,
+    },
+    {
+      id: 'w_care_1',
+      name: 'فريق رعاية الأطفال',
+      city: 'الرياض',
+      category: 'رعاية أطفال',
+      experienceYears: 0,
+      hourlyRate: 30,
+      bio: 'رعاية الأطفال داخل المنزل حسب ساعات متفق عليها.',
+      available: true,
+    },
+    {
+      id: 'w_cooking_1',
+      name: 'فريق الطبخ المنزلي',
+      city: 'جدة',
+      category: 'طبخ منزلي',
+      experienceYears: 0,
+      hourlyRate: 28,
+      bio: 'إعداد وجبات منزلية يومية أو أسبوعية.',
+      available: true,
+    },
+  ];
+}
+
+function bootstrap(): void {
+  applySnapshot(readSnapshot());
+  seedDevelopmentData();
+  seedWorkers();
+  // المدير في الإنتاج يُنشأ من متغيرات البيئة فقط.
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (
+    process.env.NODE_ENV === 'production' &&
+    adminEmail &&
+    adminPassword &&
+    !users.some((u) => u.role === 'admin')
+  ) {
+    users.push({
+      id: `u_admin_${Date.now()}`,
+      name: process.env.ADMIN_NAME ?? 'إدارة المنصة',
+      email: adminEmail,
+      role: 'admin',
+      passwordHash: bcrypt.hashSync(adminPassword, 10),
+      createdAt: new Date().toISOString(),
+    });
+    persist();
+  }
+}
+
+bootstrap();
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+export function getWalletBalance(userId: string): number {
+  return walletTransactions
+    .filter((t) => t.userId === userId)
+    .reduce((sum, t) => sum + t.amount, 0);
+}
+
+export function loyaltyFor(userId: string): LoyaltyRecord {
+  return loyaltyByUser.get(userId) ?? { points: 0, history: [] };
+}
+
+/** متوسط تقييم العاملة من التقييمات الحقيقية فقط. */
+export function workerRating(workerId: string): {
+  rating: number;
+  count: number;
+} {
+  const list = reviews.filter((r) => r.workerId === workerId);
+  if (list.length === 0) return { rating: 0, count: 0 };
+  const sum = list.reduce((acc, r) => acc + r.rating, 0);
+  return { rating: Number((sum / list.length).toFixed(1)), count: list.length };
+}
+
 export async function createUser(input: {
   name: string;
   email: string;
@@ -222,34 +366,49 @@ export async function createUser(input: {
   role: AppRole;
 }): Promise<User> {
   const user: User = {
-    id: `u_${input.role}_${Date.now()}`,
+    id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     name: input.name,
     email: input.email,
-    password: input.password,
-    passwordHash: await bcrypt.hash(input.password, 10),
     role: input.role,
+    passwordHash: await bcrypt.hash(input.password, 10),
+    createdAt: new Date().toISOString(),
   };
   users.push(user);
+  persist();
   return user;
 }
 
-/// يحدّث كلمة مرور مستخدم موجود.
 export async function updateUserPassword(
   user: User,
   newPassword: string,
 ): Promise<void> {
-  user.password = newPassword;
   user.passwordHash = await bcrypt.hash(newPassword, 10);
+  persist();
 }
 
-export function parseUserFromToken(token?: string): User | undefined {
-  if (!token || !token.startsWith('demo-token-')) {
-    return undefined;
-  }
-
-  const userId = token.replace('demo-token-', '');
-  return users.find((user) => user.id === userId);
+/** يحذف المستخدم وكل بياناته المرتبطة (متطلب Apple 5.1.1(v)). */
+export function deleteUserData(userId: string): void {
+  users = users.filter((u) => u.id !== userId);
+  bookings = bookings.filter((b) => b.userId !== userId);
+  messages = messages.filter((m) => m.senderId !== userId);
+  walletTransactions = walletTransactions.filter((t) => t.userId !== userId);
+  loyaltyByUser.delete(userId);
+  loyaltyCoupons = loyaltyCoupons.filter((c) => c.userId !== userId);
+  reviews = reviews.filter((r) => r.userId !== userId);
+  addresses = addresses.filter((a) => a.userId !== userId);
+  notifications = notifications.filter((n) => n.userId !== userId);
+  workers = workers.filter((w) => w.userId !== userId);
+  persist();
 }
 
-void hashSeedPasswords();
+export function findUserById(id: string): User | undefined {
+  return users.find((u) => u.id === id);
+}
 
+export function findUserByEmail(email: string): User | undefined {
+  return users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+}
+
+export function makeId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+}

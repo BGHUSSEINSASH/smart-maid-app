@@ -80,11 +80,18 @@ class SocialButton extends StatelessWidget {
         leading: const Icon(Icons.apple, size: 22, color: Colors.white),
       );
 
+  /// هل تُعرض أزرار الدخول الاجتماعي؟ معطّلة مؤقتاً حتى يُفعَّل
+  /// التحقق الفعلي من الخدمات من الخادم (لا حسابات وهمية مشتركة).
+  static const bool socialEnabled = false;
+
   /// هل تُعرض Apple على هذه المنصة؟ (iOS/macOS فقط)
   static bool get showApple {
+    if (!socialEnabled) return false;
     if (kIsWeb) return false;
     return Platform.isIOS || Platform.isMacOS;
   }
+
+  static bool get showGoogle => socialEnabled;
 
   @override
   Widget build(BuildContext context) {

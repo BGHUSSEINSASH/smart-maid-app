@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models.dart';
-import '../../data/demo_data.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/address_provider.dart';
 
@@ -246,8 +245,31 @@ class LocalStore {
       return {};
     }
   }
+
+  /// مسح كل البيانات المحلية المخزّنة — يُستدعى عند الخروج أو حذف الحساب
+  /// حتى لا يرى المستخدم التالي بيانات المستخدم السابق.
+  static Future<void> clearAll() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final keys =
+          sp.getKeys().where((k) => k.startsWith('sm.')).toList();
+      for (final k in keys) {
+        await sp.remove(k);
+      }
+      // تصفير الـ caches في الذاكرة.
+      bookingsCache = null;
+      favoritesCache = null;
+      walletBalanceCache = null;
+      walletTxCache = null;
+      loyaltyPointsCache = null;
+      loyaltyHistCache = null;
+      addressesCache = null;
+      currencyCodeCache = null;
+    } catch (_) {
+      // تجاهل أخطاء التخزين — لا نريد أن نُفشل الخروج بسببها.
+    }
+  }
 }
 
 final hydratedProvider = Provider<bool>((ref) => true);
 
-BookingModel demoBookingSeed() => DemoData.bookings.first;

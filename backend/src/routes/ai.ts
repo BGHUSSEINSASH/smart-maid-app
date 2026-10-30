@@ -1,105 +1,99 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
-import { bookings } from '../store';
+import { requireAuth, type AuthedRequest } from '../middleware/auth';
+import { bookings, workerRating, workers } from '../store';
 
 const router = Router();
 
-const OLLAMA_TARGET = process.env.OLLAMA_TARGET ?? 'http://127.0.0.1:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'llama3';
-const OLLAMA_API_KEY = process.env.OLLAMA_PROXY_API_KEY;
+const MODEL_ENDPOINT = process.env.AI_MODEL_ENDPOINT;
+const MODEL_API_KEY = process.env.AI_MODEL_API_KEY;
+const MODEL_NAME = process.env.AI_MODEL_NAME ?? 'gpt-4o-mini';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-router.post('/chat', requireAuth, async (req: any, res) => {
+/** سياق حقيقي من قاعدة البيانات — لا عاملات مُختلقة. */
+function workerContext(): string {
+  return workers
+    .filter((w) => w.available)
+    .map((w) => {
+      const { rating, count } = workerRating(w.id);
+      const stars = count > 0 ? `تقييم ${rating} من ${count}` : 'بدون تقييمات';
+      return `- ${w.id}: ${w.name} (${w.category})، ${w.city}، ${w.hourlyRate}/ساعة، ${stars}`;
+    })
+    .join('\n');
+}
+
+/**
+ * المساعد يعمل فقط عندما يكون مزوّد النموذج مُهيّأً على الخادم.
+ * بدونه نُعيد 503 بدل توليد إجابات مُختلقة أو أسعار وهمية.
+ */
+router.post('/chat', requireAuth, async (req: AuthedRequest, res) => {
+  const userMessage = String(req.body?.message ?? '').slice(0, 2000).trim();
+  if (!userMessage) {
+    res.status(400).json({ error: 'الرسالة فارغة' });
+    return;
+  }
+  if (!MODEL_ENDPOINT) {
+    res.status(503).json({
+      code: 'assistant_unavailable',
+      error: 'المساعد الذكي غير متاح حالياً',
+    });
+    return;
+  }
+
+  const messages: ChatMessage[] = [
+    {
+      role: 'system',
+      content:
+        'أنت مساعد لتطبيق شغالتي لخدمات العاملات المنزلية. أجب بالعربية بإيجاز. ' +
+        'اعتمد فقط على هذه القائمة من الخدمات المتاحة:\n' +
+        workerContext() +
+        '\nلا تذكر خدمات أو أشخاصاً غير موجودين، ولا تُقدّر أسعاراً نهائية: السعر يظهر في شاشة الحجز.',
+    },
+    { role: 'user', content: userMessage },
+  ];
+
   try {
-    const userMessage = String(req.body?.message ?? '').slice(0, 2000);
-    if (!userMessage.trim()) {
-      return res.status(400).json({ error: 'الرسالة فارغة' });
-    }
-
-    // Build live worker context from real data
-    const workersDesc = [
-      'w1: Maria (تنظيف المنازل, 4.9⭐, $32/س, الرياض, متاحة)',
-      'w2: Anna (تنظيف عميق, 4.8⭐, $29/س, جدة, متاحة)',
-      'w3: Nour (طبخ وتنظيف, 4.7⭐, $27/س, الرياض, مشغولة)',
-      'cw1: ماريا سانتوس (تنظيف المنازل, 4.9⭐, $30/س, الرياض, متاحة)',
-    ].join('\n');
-
-    const messages: ChatMessage[] = [
-      {
-        role: 'system',
-        content:
-          'أنت مساعد حجوزات لتطبيق Smart Maid لخدمات العاملات المنزلية. ' +
-          'أجب بالعربية بإيجاز وودّية، واقترح عاملات من القائمة التالية عند الحاجة ' +
-          '(اذكر الاسم والسبب في سطر واحد لكل اقتراح):\n' +
-          workersDesc +
-          '\nلا تخترع عاملات غير موجودين في القائمة. إن كان الطلب غير واضح فاطرح سؤالاً توضيحياً واحداً.',
+    const upstream = await fetch(MODEL_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(MODEL_API_KEY ? { Authorization: `Bearer ${MODEL_API_KEY}` } : {}),
       },
-      { role: 'user', content: userMessage },
-    ];
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        stream: false,
+        messages,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
 
-    try {
-      const upstream = await fetch(`${OLLAMA_TARGET}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(OLLAMA_API_KEY
-            ? { Authorization: `Bearer ${OLLAMA_API_KEY}` }
-            : {}),
-        },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          stream: false,
-          messages,
-        }),
-        signal: AbortSignal.timeout(20000),
+    if (!upstream.ok) {
+      res.status(502).json({
+        code: 'assistant_upstream_error',
+        error: 'تعذر الوصول إلى المساعد حالياً',
       });
-
-      if (upstream.ok) {
-        const data: any = await upstream.json();
-        const reply: string = data?.message?.content ?? '';
-        if (reply.trim()) {
-          return res.json({ source: 'ollama', reply: reply.trim() });
-        }
-      }
-    } catch {
-      // Ollama offline — fall through to smart fallback
+      return;
     }
-
-    // Smart deterministic fallback (no AI model needed)
-    const q = userMessage;
-    const priceMatch = q.match(/(\d+)\s*(غرف|غرفة|غرفة)/);
-    const freq = /أسبوع|اسبوع|weekly|شهري|شهر/i.test(q);
-    const price =
-      priceMatch != null
-        ? Number(priceMatch[1]) * (freq ? 480 : 256)
-        : freq
-          ? 1280
-          : 256;
-    const fallback = freq
-      ? `للحجز ${freq ? 'الأسبوعي/الشهري' : ''} نقدّر التكلفة بحوالي $${price} تقريباً. ` +
-        'اختر عاملة من الصفحة الرئيسية ثم حدد الباقة المناسبة وستشاهد السعر النهائي قبل الدفع 💡'
-      : `نقدّر تكلفة طلبك بحوالي $${price}. تصفح العاملات المتاحات واحجز مباشرة — الدفع آمن ومحفوظ حتى إتمام المهمة ✨`;
-
-    res.json({ source: 'fallback', reply: fallback });
+    const data = (await upstream.json()) as {
+      choices?: { message?: { content?: string } }[];
+      message?: { content?: string };
+    };
+    const reply =
+      data.choices?.[0]?.message?.content ?? data.message?.content ?? '';
+    if (!reply.trim()) {
+      res.status(502).json({ code: 'assistant_empty', error: 'لا يوجد رد' });
+      return;
+    }
+    res.json({ reply: reply.trim() });
   } catch {
-    res.status(500).json({ error: 'خطأ داخلي' });
+    res.status(504).json({ code: 'assistant_timeout', error: 'انتهت المهلة' });
   }
 });
 
-// Quick price estimate used by booking screen tips
-router.get('/estimate', requireAuth, (req: any, res) => {
-  const rooms = Math.max(1, Math.min(10, Number(req.query.rooms ?? 3)));
-  const weekly = String(req.query.weekly ?? 'false') === 'true';
-  const base = rooms * (weekly ? 160 : 85);
-  res.json({ rooms, weekly, estimatedUsd: base });
-});
-
-// Training-style endpoint: recent bookings summary for AI context
-router.get('/context', requireAuth, (req: any, res) => {
+router.get('/context', requireAuth, (req: AuthedRequest, res) => {
   const userBookings = bookings.filter((b) => b.userId === req.user!.id);
   res.json({
     bookingsCount: userBookings.length,

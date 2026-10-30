@@ -10,7 +10,15 @@ class AppLockScreen extends ConsumerStatefulWidget {
   final bool setupMode;
   final VoidCallback? onDone;
 
-  const AppLockScreen({super.key, this.setupMode = false, this.onDone});
+  /// يُستدعى عند نسيان الرمز: يخرج المستخدم ويعيد الدخول بكلمة المرور.
+  final Future<void> Function()? onForgot;
+
+  const AppLockScreen({
+    super.key,
+    this.setupMode = false,
+    this.onDone,
+    this.onForgot,
+  });
 
   @override
   ConsumerState<AppLockScreen> createState() => _AppLockScreenState();
@@ -22,8 +30,10 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
   bool _confirming = false;
   String? _error;
   bool _busy = false;
+  int _attempts = 0;
 
   static const _len = 4;
+  static const _maxAttempts = 5;
 
   Future<void> _onDigit(String d) async {
     if (_busy || _pin.length >= _len) return;
@@ -76,12 +86,37 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
       widget.onDone?.call();
     } else {
       HapticFeedback.heavyImpact();
+      _attempts += 1;
       setState(() {
-        _error = 'الرمز غير صحيح';
         _pin = '';
         _busy = false;
+        _error = _attempts >= _maxAttempts
+            ? 'محاولات كثيرة. سجّل الخروج واستخدم كلمة المرور.'
+            : 'الرمز غير صحيح ($_attempts/$_maxAttempts)';
       });
     }
+  }
+
+  Future<void> _forgot() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('نسيت رمز الحماية؟'),
+        content: const Text(
+          'لا يمكن استعادة الرمز. سيتم تسجيل الخروج، ويمكنك الدخول بكلمة '
+          'المرور ثم تعيين رمز جديد من الإعدادات.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('تسجيل الخروج')),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.onForgot?.call();
   }
 
   String get _title {
@@ -137,6 +172,15 @@ class _AppLockScreenState extends ConsumerState<AppLockScreen> {
               ),
               const Spacer(),
               _keypad(),
+              if (!widget.setupMode && widget.onForgot != null)
+                TextButton(
+                  onPressed: _attempts >= _maxAttempts ? null : _forgot,
+                  child: Text(
+                    _attempts >= _maxAttempts
+                        ? 'سجّل الخروج لاستعادة الوصول'
+                        : 'نسيت رمز الحماية؟',
+                  ),
+                ),
               const SizedBox(height: 20),
             ],
           ),

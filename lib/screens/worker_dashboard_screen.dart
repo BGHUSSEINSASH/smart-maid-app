@@ -1,242 +1,219 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
-import '../data/demo_data.dart';
-import '../data/models.dart';
-import '../providers/booking_provider.dart';
-import '../providers/currency_provider.dart';
-import '../providers/review_provider.dart';
-import '../providers/wallet_provider.dart';
 import '../core/theme/adaptive.dart';
-import 'booking_detail_screen.dart' show BookingOtp;
+import '../data/models.dart';
+import '../providers/auth_provider.dart';
+import '../providers/currency_provider.dart';
+import '../providers/wallet_provider.dart';
+import '../providers/worker_provider.dart';
+import '../widgets/app_image.dart';
 
-class WorkerDashboardScreen extends ConsumerWidget {
+/// لوحة العاملة: ملفها الحقيقي، حالة توفّرها، وطلباتها الواردة من الخادم.
+class WorkerDashboardScreen extends ConsumerStatefulWidget {
   const WorkerDashboardScreen({super.key});
 
-  void _startJob(BookingModel b, WidgetRef ref, BuildContext context) {
-    ref.read(myBookingsProvider.notifier).startBooking(b.id);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('بدأت المهمة — بالتوفيق! 💪'),
-        behavior: SnackBarBehavior.floating));
+  @override
+  ConsumerState<WorkerDashboardScreen> createState() =>
+      _WorkerDashboardScreenState();
+}
+
+class _WorkerDashboardScreenState extends ConsumerState<WorkerDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(workerProvider.notifier).load();
+      ref.read(walletProvider.notifier).refresh();
+    });
   }
 
-  
+  Future<void> _toggleAvailable(bool value) async {
+    final error =
+        await ref.read(workerProvider.notifier).setAvailable(value);
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
 
-  void _finishJob(BookingModel b, WidgetRef ref, BuildContext context) {
-    final ctrl = TextEditingController();
-    final expected = BookingOtp.codeFor(b.id);
-    showDialog<void>(
+  Future<void> _finishJob(BookingModel b) async {
+    final done = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تأكيد إنهاء المهمة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('اطلب من العميل كود التأكيد الظاهر في تفاصيل حجزه:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ctrl,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 22, letterSpacing: 8, fontWeight: FontWeight.w900),
-              decoration: const InputDecoration(
-                  counterText: '', hintText: '••••'),
-            ),
-          ],
+        content: const Text(
+          'سيُسجَّل الحجز كمكتمل، ويُحسب المبلغ نقداً بعد إتمام الخدمة.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('إلغاء')),
           FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: AppColors.success,
-                minimumSize: const Size(0, 42),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-            onPressed: () {
-              if (ctrl.text.trim() != expected) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                    content: Text('الكود غير صحيح'),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating));
-                return;
-              }
-              ref.read(myBookingsProvider.notifier).completeBooking(b.id);
-              ref.read(myBookingsProvider.notifier).markPaid(b.id);
-              ref
-                  .read(walletProvider.notifier)
-                  .addEarning(b.total * 0.8, 'أرباح مهمة ${b.service}');
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(
-                      'اكتملت المهمة! أُضيف ${b.total * 0.8} لمحفظتك 🎉'),
-                  backgroundColor: AppColors.success,
-                  behavior: SnackBarBehavior.floating));
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('تأكيد الإنهاء'),
           ),
         ],
       ),
     );
+    if (done != true) return;
+    final error =
+        await ref.read(workerProvider.notifier).setStatus(b.id, 'completed');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(error ?? 'تم تسجيل إنهاء المهمة'),
+      backgroundColor: error == null ? AppColors.success : AppColors.error,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookings = ref.watch(myBookingsProvider);
+  Widget build(BuildContext context) {
+    final state = ref.watch(workerProvider);
+    final user = ref.watch(authProvider).user;
     final currency = ref.watch(currencyProvider);
-    final availability = ref.watch(workerAvailabilityProvider);
-    final isAvailable = availability['w1'] ?? true;
-    final todayJobs = bookings
+    final wallet = ref.watch(walletProvider);
+    final profile = state.profile;
+    final active = state.incoming
         .where((b) =>
-            b.workerId == 'w1' &&
-            (b.status == BookingStatus.pending ||
-                b.status == BookingStatus.confirmed))
+            b.status == BookingStatus.confirmed || b.status == BookingStatus.pending)
         .toList();
-    final completed = bookings
-        .where(
-            (b) => b.workerId == 'w1' && b.status == BookingStatus.completed)
+    final completed = state.incoming
+        .where((b) => b.status == BookingStatus.completed)
         .toList();
-    final monthEarnings =
-        completed.fold(0.0, (s, b) => s + b.total * 0.8);
-    final walletBalance = ref.watch(walletProvider).balanceUsd;
+    final earnings = completed.fold<double>(0, (sum, b) => sum + b.total);
 
     return Scaffold(
       appBar: AppBar(title: const Text('لوحتي')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Row(children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: NetworkImage(DemoData.workers.first.imageUrl),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(workerProvider.notifier).load();
+          await ref.read(walletProvider.notifier).refresh();
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: AppColors.heroGradient,
+                borderRadius: BorderRadius.circular(22),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('مرحباً، ${DemoData.workers.first.name.split(' ').first} 👋',
+              child: Row(children: [
+                AppAvatar(
+                  url: '',
+                  radius: 30,
+                  label: profile?.name ?? user?.name ?? '',
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'مرحباً، ${(profile?.name ?? user?.name ?? '').split(' ').first} 👋',
                         style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            fontSize: 17)),
-                    const SizedBox(height: 2),
-                    Text('${todayJobs.length} مهام اليوم',
-                        style:
-                            const TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: isAvailable
-                  ? AppColors.success.withValues(alpha: 0.09)
-                  : AppColors.warning.withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: isAvailable ? AppColors.success : AppColors.warning,
-                  width: 1.3),
-            ),
-            child: Row(children: [
-              Icon(isAvailable ? Icons.wifi_tethering_rounded : Icons.do_not_disturb_on_rounded,
-                  color: isAvailable ? AppColors.success : AppColors.warning,
-                  size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  isAvailable ? 'أنتِ متاحة لاستقبال الطلبات الآن' : 'وضع الإيقاف المؤقت',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13.5,
-                      color: isAvailable ? AppColors.success : AppColors.warning),
-                ),
-              ),
-              Switch(
-                value: isAvailable,
-                activeThumbColor:
-                    isAvailable ? AppColors.success : AppColors.warning,
-                onChanged: (_) => ref
-                    .read(workerAvailabilityProvider.notifier)
-                    .toggle('w1'),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 18),
-          Row(children: [
-            _Stat(value: currency.format(monthEarnings), label: 'أرباح الشهر', color: AppColors.primary, icon: Icons.trending_up_rounded),
-            const SizedBox(width: 12),
-            _Stat(value: currency.format(walletBalance), label: 'رصيد المحفظة', color: AppColors.success, icon: Icons.wallet_rounded),
-          ]),
-          const SizedBox(height: 18),
-          SurfaceCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('أرباحك الأسبوعية (80% صافي)',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13.5,
-                        color: context.ink)),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 110,
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: 400,
-                      barTouchData: BarTouchData(enabled: false),
-                      titlesData: const FlTitlesData(show: false),
-                      gridData: const FlGridData(show: false),
-                      borderData: FlBorderData(show: false),
-                      barGroups: List.generate(7, (i) {
-                        final v = (i % 4 + 1) * 60.0 + 40;
-                        return BarChartGroupData(x: i, barRods: [
-                          BarChartRodData(
-                            toY: v,
-                            width: 14,
-                            borderRadius: BorderRadius.circular(5),
-                            color: i == DateTime.now().weekday - 1
-                                ? AppColors.primary
-                                : AppColors.success.withValues(alpha: 0.45),
-                          ),
-                        ]);
-                      }),
-                    ),
+                            fontSize: 17),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        profile == null
+                            ? 'أكمل ملفك لتصلك الطلبات'
+                            : '${profile.category} • ${profile.city}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ]),
             ),
-          ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('مهام اليوم',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: context.ink)),
-              if (completed.isNotEmpty)
-                Text('${completed.length} مكتملة',
-                    style: const TextStyle(fontSize: 12, color: AppColors.success)),
+            if (state.error != null) ...[
+              const SizedBox(height: 12),
+              Text(state.error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
             ],
-          ),
-          const SizedBox(height: 10),
-          ...todayJobs.map((b) => Container(
+            if (profile != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: profile.available
+                      ? AppColors.success.withValues(alpha: 0.09)
+                      : AppColors.warning.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: profile.available
+                          ? AppColors.success
+                          : AppColors.warning,
+                      width: 1.3),
+                ),
+                child: Row(children: [
+                  Icon(
+                      profile.available
+                          ? Icons.wifi_tethering_rounded
+                          : Icons.do_not_disturb_on_rounded,
+                      color: profile.available
+                          ? AppColors.success
+                          : AppColors.warning,
+                      size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      profile.available
+                          ? 'أنت متاحة لاستقبال الطلبات الآن'
+                          : 'وضع الإيقاف المؤقت',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          color: profile.available
+                              ? AppColors.success
+                              : AppColors.warning),
+                    ),
+                  ),
+                  Switch(
+                    value: profile.available,
+                    onChanged: _toggleAvailable,
+                  ),
+                ]),
+              ),
+            ],
+            const SizedBox(height: 18),
+            Row(children: [
+              _Stat(
+                  value: currency.format(earnings),
+                  label: 'مكتمل (${completed.length})',
+                  color: AppColors.primary,
+                  icon: Icons.trending_up_rounded),
+              const SizedBox(width: 12),
+              _Stat(
+                  value: currency.format(wallet.balanceUsd),
+                  label: 'رصيد المحفظة',
+                  color: AppColors.success,
+                  icon: Icons.wallet_rounded),
+            ]),
+            const SizedBox(height: 22),
+            Text('طلبات نشطة (${active.length})',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: context.ink)),
+            const SizedBox(height: 10),
+            if (active.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text('لا توجد طلبات نشطة.',
+                    style: TextStyle(color: context.mutedText)),
+              ),
+            ...active.map((b) {
+              final confirmed = b.status == BookingStatus.confirmed;
+              return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -254,13 +231,11 @@ class WorkerDashboardScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                          b.status == BookingStatus.confirmed
+                          confirmed
                               ? Icons.check_circle_outline_rounded
-                              : Icons.directions_run_rounded,
+                              : Icons.hourglass_empty_rounded,
                           size: 21,
-                          color: b.status == BookingStatus.confirmed
-                              ? AppColors.primary
-                              : AppColors.accent),
+                          color: AppColors.primary),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -281,40 +256,39 @@ class WorkerDashboardScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    Text(currency.format(b.total * 0.8),
-                        style: TextStyle(
+                    Text(currency.format(b.total),
+                        style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             color: AppColors.success,
                             fontSize: 13)),
                   ]),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    height: 38,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(0, 38),
-                          backgroundColor: b.status == BookingStatus.confirmed
-                              ? AppColors.primary
-                              : AppColors.success,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                      onPressed: () => b.status == BookingStatus.confirmed
-                          ? _startJob(b, ref, context)
-                          : _finishJob(b, ref, context),
-                      icon: Icon(
-                          b.status == BookingStatus.confirmed
-                              ? Icons.play_arrow_rounded
-                              : Icons.task_alt_rounded,
-                          size: 17),
-                      label: Text(
-                          b.status == BookingStatus.confirmed
-                              ? 'بدء المهمة الآن'
-                              : 'إنهاء المهمة (كود العميل)',
-                          style: const TextStyle(fontSize: 12.5)),
+                  if (confirmed)
+                    SizedBox(
+                      height: 38,
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 38),
+                            backgroundColor: AppColors.success,
+                            tapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap),
+                        onPressed: () => _finishJob(b),
+                        icon: const Icon(Icons.task_alt_rounded, size: 17),
+                        label: const Text('إنهاء المهمة',
+                            style: TextStyle(fontSize: 12.5)),
+                      ),
+                    )
+                  else
+                    const Text(
+                      'بانتظار قبولك من تبويب الطلبات الواردة.',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.muted),
                     ),
-                  ),
                 ]),
-              )),
-        ],
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -345,14 +319,15 @@ class _Stat extends StatelessWidget {
           children: [
             Icon(icon, size: 19, color: color),
             const SizedBox(height: 8),
-            FittedBox(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17))),
-            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+            FittedBox(
+                child: Text(value,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 17))),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: AppColors.muted)),
           ],
         ),
       ),
     );
   }
 }
-
-
-

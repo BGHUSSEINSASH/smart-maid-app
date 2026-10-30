@@ -1,14 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api/api_client.dart';
 import '../data/models.dart';
-import '../data/demo_data.dart';
 
+/// تقييمات حقيقية فقط — تُحمَّل من الخادم لكل عاملة، وتبدأ فارغة.
 class ReviewsNotifier extends StateNotifier<Map<String, List<ReviewModel>>> {
-  ReviewsNotifier()
-      : super({
-          'w1': DemoData.reviews,
-          'cw1': DemoData.reviews.sublist(0, 2),
-          'w2': [DemoData.reviews[1], DemoData.reviews[2]],
-        });
+  ReviewsNotifier() : super(const {});
 
   List<ReviewModel> forWorker(String workerId) =>
       state[workerId] ?? const [];
@@ -19,6 +15,29 @@ class ReviewsNotifier extends StateNotifier<Map<String, List<ReviewModel>>> {
     return list.fold(0.0, (s, r) => s + r.rating) / list.length;
   }
 
+  Future<String?> load(String workerId) async {
+    try {
+      final res = await ApiClient.get('/reviews/worker/$workerId');
+      final list = (res['reviews'] as List?) ?? const [];
+      final parsed = list.whereType<Map<String, dynamic>>().map((json) {
+        return ReviewModel(
+          id: json['id']?.toString() ?? '',
+          reviewerName: '',
+          reviewerImage: '',
+          rating: (json['rating'] as num?)?.toDouble() ?? 0,
+          comment: json['comment']?.toString() ?? '',
+          date: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+              DateTime.now(),
+        );
+      }).toList();
+      state = {...state, workerId: parsed};
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// إضافة تقييم تتم على الخادم بعد حجز مكتمل، ثم نُحدّث القائمة محلياً.
   void addReview({
     required String workerId,
     required String reviewerName,
@@ -52,23 +71,3 @@ final reviewsCountProvider = Provider<int>((ref) {
       .values
       .fold(0, (sum, list) => sum + list.length);
 });
-
-class WorkerAvailabilityNotifier extends StateNotifier<Map<String, bool>> {
-  WorkerAvailabilityNotifier()
-      : super({
-          for (final w in [...DemoData.workers, ...DemoData.companyWorkers])
-            w.id: w.isAvailable,
-        });
-
-  void toggle(String workerId) {
-    state = {
-      ...state,
-      workerId: !(state[workerId] ?? true),
-    };
-  }
-}
-
-final workerAvailabilityProvider = StateNotifierProvider<
-    WorkerAvailabilityNotifier, Map<String, bool>>(
-  (ref) => WorkerAvailabilityNotifier(),
-);

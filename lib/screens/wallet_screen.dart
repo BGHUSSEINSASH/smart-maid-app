@@ -13,135 +13,6 @@ class WalletScreen extends ConsumerStatefulWidget {
 }
 
 class _WalletScreenState extends ConsumerState<WalletScreen> {
-  void _topUpSheet() {
-    double amount = 50;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('شحن المحفظة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [25, 50, 100, 250].map((v) {
-                  final sel = amount == v.toDouble();
-                  return GestureDetector(
-                    onTap: () => setSheet(() => amount = v.toDouble()),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 70,
-                      height: 54,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? AppColors.primary
-                            : AppColors.primary.withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: sel
-                                ? AppColors.primary
-                                : AppColors.stroke),
-                      ),
-                      child: Text('\$$v',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                              color:
-                                  sel ? Colors.white : AppColors.primary)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ref.read(walletProvider.notifier).topUp(amount);
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('تم شحن \$$amount إلى محفظتك ✅'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppColors.success,
-                    ));
-                  },
-                  icon: const Icon(Icons.add_card_rounded, size: 19),
-                  label: Text('اشحن \$${amount.toStringAsFixed(0)}'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _withdrawSheet() {
-    final ctrl = TextEditingController();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('طلب سحب',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 14),
-              TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'المبلغ (\$)'),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    final v = double.tryParse(ctrl.text.trim()) ?? 0;
-                    final ok = ref.read(walletProvider.notifier).withdraw(v);
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(ok
-                          ? 'تم إرسال طلب السحب، قيد المراجعة ⏳'
-                          : 'مبلغ غير صالح أو يتجاوز الرصيد'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor:
-                          ok ? AppColors.success : AppColors.error,
-                    ));
-                  },
-                  icon: const Icon(Icons.upload_rounded, size: 19),
-                  label: const Text('إرسال الطلب'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final wallet = ref.watch(walletProvider);
@@ -178,25 +49,14 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
                         color: Colors.white)),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _WalletAction(
-                        icon: Icons.add_rounded,
-                        label: 'شحن رصيد',
-                        onTap: _topUpSheet,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _WalletAction(
-                        icon: Icons.upload_rounded,
-                        label: 'طلب سحب',
-                        onTap: _withdrawSheet,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 14),
+                Text(
+                  'شحن الرصيد والسحب غير مفعّلين في هذا الإصدار. الدفع نقداً بعد إتمام الخدمة.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    height: 1.6,
+                  ),
                 ),
               ],
             ),
@@ -263,43 +123,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             );
           }),
         ],
-      ),
-    );
-  }
-}
-
-class _WalletAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _WalletAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.2),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 19),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ),
       ),
     );
   }

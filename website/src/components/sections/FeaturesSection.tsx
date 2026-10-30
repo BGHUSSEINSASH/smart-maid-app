@@ -3,26 +3,26 @@ import { useLocale } from "next-intl";
 
 const FEATS = {
   ar: [
-    { icon:"⚡", t:"حجز فوري", d:"احجز عاملتك المثالية خلال دقائق بخطوات واضحة", c:"icon-indigo" },
-    { icon:"🎤", t:"بحث صوتي", d:"تحدّث بشكل طبيعي والنظام يجد لك العاملة المناسبة", c:"icon-cyan" },
-    { icon:"🤝", t:"مساعد حجز", d:"أوصف ما تحتاجه وسيقترح عليك الخيارات المتاحة", c:"icon-indigo" },
-    { icon:"📅", t:"باقة شهرية", d:"جدول ثابت أسبوعياً بأفضل الأسعار وعاملة مخصصة", c:"icon-cyan" },
-    { icon:"🛡️", t:"عاملات موثّقات KYC", d:"تحقق كامل من الهوية والمستندات قبل التفعيل", c:"icon-indigo" },
-    { icon:"💳", t:"دفع آمن بـ Escrow", d:"أموالك محفوظة حتى إتمام الخدمة بشكل مُرضٍ", c:"icon-cyan" },
-    { icon:"📍", t:"تحديد الموقع GPS", d:"حدّد عنوانك بدقة بلمسة واحدة عبر GPS أو الخريطة", c:"icon-indigo" },
-    { icon:"⭐", t:"تقييمات حقيقية", d:"تقييمات موثّقة من عملاء فعليين — شفافية كاملة", c:"icon-cyan" },
-    { icon:"🔒", t:"قفل التطبيق PIN", d:"حماية إضافية برمز سري أو بصمة الإصبع", c:"icon-indigo" },
+    { icon:"⚡", t:"حجز واضح", d:"اختر الخدمة والموعد والساعات، وترى المبلغ كاملاً قبل التأكيد", c:"icon-indigo" },
+    { icon:"📩", t:"الطلب يصل للعاملة", d:"يُرسل حجزك إلى العاملة لتقبله، وتصلك التحديثات في التطبيق", c:"icon-cyan" },
+    { icon:"💬", t:"محادثة داخل الحجز", d:"تواصل مع العاملة حول تفاصيل المنزل والموعد، مع إمكانية الإبلاغ", c:"icon-indigo" },
+    { icon:"💵", t:"الدفع عند إتمام الخدمة", d:"تدفع نقداً بعد تنفيذ الخدمة — لا تُدخل بيانات بطاقة في التطبيق", c:"icon-cyan" },
+    { icon:"📅", t:"حجز بالساعة أو باليوم", d:"ساعات محددة، أو يوم كامل، أو باقة أسبوعية أو شهرية", c:"icon-indigo" },
+    { icon:"🧾", t:"فواتير قابلة للمشاركة", d:"احصل على فاتورة PDF لكل حجز وشاركها من تطبيقك", c:"icon-cyan" },
+    { icon:"⭐", t:"تقييمات بعد الخدمة", d:"التقييم متاح فقط بعد إتمام حجز فعلي، ويظهر للجميع بشفافية", c:"icon-indigo" },
+    { icon:"🎁", t:"نقاط وكوبونات", d:"اجمع نقاطاً على الحجوزات المكتملة واستبدلها بكوبون خصم", c:"icon-cyan" },
+    { icon:"🔒", t:"قفل التطبيق برمز", d:"حماية إضافية برمز سري يمكنك تعطيله من الإعدادات", c:"icon-indigo" },
   ],
   en: [
-    { icon:"⚡", t:"Instant Booking", d:"Book your maid in minutes with a simple, clear process", c:"icon-indigo" },
-    { icon:"🎤", t:"Voice Search", d:"Speak naturally and the system finds the right maid for you", c:"icon-cyan" },
-    { icon:"🤝", t:"Booking Assistant", d:"Describe what you need and get available options suggested", c:"icon-indigo" },
-    { icon:"📅", t:"Monthly Package", d:"Fixed weekly schedule at the best price with a dedicated maid", c:"icon-cyan" },
-    { icon:"🛡️", t:"KYC Verified Maids", d:"Full identity and document verification before activation", c:"icon-indigo" },
-    { icon:"💳", t:"Escrow Payments", d:"Your money is held until service is completed satisfactorily", c:"icon-cyan" },
-    { icon:"📍", t:"GPS Location", d:"Set your address precisely with one tap via GPS or map", c:"icon-indigo" },
-    { icon:"⭐", t:"Verified Reviews", d:"Reviews from real customers only — full transparency", c:"icon-cyan" },
-    { icon:"🔒", t:"PIN App Lock", d:"Extra protection with encrypted PIN code or fingerprint", c:"icon-indigo" },
+    { icon:"⚡", t:"Clear booking", d:"Pick the service, date and hours — the full amount is shown before you confirm", c:"icon-indigo" },
+    { icon:"📩", t:"Requests reach the worker", d:"Your booking is sent to the worker to accept, and updates arrive in the app", c:"icon-cyan" },
+    { icon:"💬", t:"In-booking chat", d:"Discuss the home and timing with the worker, with a report option", c:"icon-indigo" },
+    { icon:"💵", t:"Pay when it's done", d:"Pay cash after the service is completed — no card details in the app", c:"icon-cyan" },
+    { icon:"📅", t:"Hourly, daily or longer", d:"Specific hours, a full day, or a weekly or monthly package", c:"icon-indigo" },
+    { icon:"🧾", t:"Shareable invoices", d:"Get a PDF invoice for every booking and share it from the app", c:"icon-cyan" },
+    { icon:"⭐", t:"Reviews after service", d:"Reviewing is only possible after a completed booking, and is public", c:"icon-indigo" },
+    { icon:"🎁", t:"Points and coupons", d:"Earn points on completed bookings and redeem them for a discount", c:"icon-cyan" },
+    { icon:"🔒", t:"PIN app lock", d:"Extra protection with a PIN you can turn off in settings", c:"icon-indigo" },
   ],
 };
 
@@ -40,10 +40,10 @@ export default function FeaturesSection() {
             {ar ? "المميزات" : "Features"}
           </span>
           <h2 className="t-h1" style={{ color: "var(--text)", marginBottom: ".75rem" }}>
-            {ar ? "كل ما تحتاجه في مكان واحد" : "Everything you need in one place"}
+            {ar ? "مميزات التطبيق" : "What the app does"}
           </h2>
           <p className="t-lead" style={{ maxWidth: 520, marginInline: "auto" }}>
-            {ar ? "منصة متكاملة — من البحث الصوتي والحجز الفوري إلى التتبع اللحظي والدفع الآمن" : "An all-in-one platform — from voice search and instant booking to live tracking and secure payment"}
+            {ar ? "ما يقدّمه التطبيق فعلياً اليوم: حجز، محادثة، تقييم بعد الخدمة، وفاتورة." : "What the app actually does today: booking, chat, post-service reviews, and invoices."}
           </p>
         </div>
 

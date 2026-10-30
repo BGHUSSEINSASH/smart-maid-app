@@ -1,7 +1,7 @@
-import '../../data/demo_data.dart';
+import '../../data/catalog.dart';
 
 List<dynamic> get workersPool =>
-    [...DemoData.workers, ...DemoData.companyWorkers];
+    [...Catalog.workers, ...Catalog.companyWorkers];
 
 class AssistantMatch {
   final String workerId;

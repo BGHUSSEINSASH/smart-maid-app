@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/api/api_client.dart';
 import '../core/session/session_store.dart';
+import '../core/storage/local_store.dart';
 import '../data/models.dart';
 import '../features/auth/data/auth_service.dart';
 import 'audit_log_provider.dart';
@@ -22,8 +23,7 @@ class AuthState {
       );
 }
 
-/// مزوّد خدمة المصادقة — استبدل [MockAuthService] بـ FirebaseAuthService لاحقاً.
-final authServiceProvider = Provider<AuthService>((ref) => MockAuthService());
+final authServiceProvider = Provider<AuthService>((ref) => ApiAuthService());
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _service;
@@ -31,10 +31,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._service, this._ref) : super(const AuthState());
 
   Future<void> restoreSession() async {
-    final user = await SessionStore.loadUser();
     final token = await SessionStore.loadToken();
-    if (token != null) ApiClient.setToken(token);
-    if (user != null) state = state.copyWith(user: user);
+    final user = await SessionStore.loadUser();
+    if (token != null && user != null) {
+      ApiClient.setToken(token);
+      // نتأكد أن الجلسة ما زالت صالحة على الخادم قبل عرض البيانات.
+      try {
+        final fresh = await (ApiAuthService()).refreshProfile();
+        await SessionStore.saveUser(fresh);
+        state = AuthState(user: fresh);
+        return;
+      } on ApiException catch (e) {
+        if (e.isUnauthorized) {
+          await SessionStore.clear();
+          ApiClient.setToken(null);
+          return;
+        }
+        // فشل شبكة: نُبقي الجلسة المحفوظة ونعرض بيانات المستخدم المخزّنة.
+      }
+      state = AuthState(user: user);
+    }
   }
 
   Future<bool> login(String email, String password) async {
@@ -48,6 +64,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
     required AppRole role,
+    String referralCode = '',
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     final res = await _service.signUp(
@@ -55,49 +72,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       email: email,
       password: password,
       role: role,
+      referralCode: referralCode,
     );
     return _apply(res);
-  }
-
-  Future<bool> signInWithGoogle() async {
-    state = state.copyWith(isLoading: true, error: null);
-    return _apply(await _service.signInWithGoogle());
-  }
-
-  Future<bool> signInWithApple() async {
-    state = state.copyWith(isLoading: true, error: null);
-    return _apply(await _service.signInWithApple());
-  }
-
-  /// يرسل رمز إعادة التعيين. يعيد الرمز (وضع التطوير) أو null عند الفشل.
-  Future<String?> sendPasswordReset(String email) async {
-    state = state.copyWith(isLoading: true, error: null);
-    final res = await _service.sendPasswordReset(email);
-    if (res.error != null) {
-      state = state.copyWith(isLoading: false, error: res.error);
-      return null;
-    }
-    state = state.copyWith(isLoading: false);
-    return res.token;
-  }
-
-  Future<bool> resetPassword({
-    required String email,
-    required String code,
-    required String newPassword,
-  }) async {
-    state = state.copyWith(isLoading: true, error: null);
-    final res = await _service.resetPassword(
-      email: email,
-      code: code,
-      newPassword: newPassword,
-    );
-    if (res.error != null) {
-      state = state.copyWith(isLoading: false, error: res.error);
-      return false;
-    }
-    state = state.copyWith(isLoading: false);
-    return true;
   }
 
   Future<bool> _apply(AuthResult res) async {
@@ -123,17 +100,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (_) {}
   }
 
-  /// دخول مباشر بدور محدد (للاختبار السريع فقط).
-  Future<void> loginAs(AppUser user) async {
-    await SessionStore.saveUser(user, token: 'demo-token-${user.id}');
-    ApiClient.setToken('demo-token-${user.id}');
-    state = AuthState(user: user);
-  }
-
   Future<void> updateProfile(AppUser user) async {
     if (state.user == null) return;
     await SessionStore.saveUser(user);
     state = state.copyWith(user: user);
+  }
+
+  /// حذف الحساب نهائياً من الخادم ثم مسح كل شيء من الجهاز.
+  Future<({bool ok, String? error})> deleteAccount() async {
+    try {
+      await _service.deleteAccount();
+    } on ApiException catch (e) {
+      if (!e.isUnauthorized) {
+        return (ok: false, error: e.message);
+      }
+    }
+    await LocalStore.clearAll();
+    await SessionStore.clear();
+    ApiClient.setToken(null);
+    state = const AuthState();
+    return (ok: true, error: null);
   }
 
   Future<void> logout() async {
@@ -143,10 +129,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     ApiClient.setToken(null);
     await SessionStore.clear();
+    // لا يرى المستخدم التالي بيانات المستخدم السابق.
+    await LocalStore.clearAll();
     state = const AuthState();
   }
-
-  void clearError() => state = state.copyWith(error: null);
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(

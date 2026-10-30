@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../core/api/api_client.dart';
 import '../core/storage/local_store.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_image.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -20,23 +22,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late final _phoneCtrl = TextEditingController();
   late final _locationCtrl = TextEditingController();
   String _imageUrl = '';
-  bool _loaded = false;
-
-  static const _avatars = [
-    'https://i.pravatar.cc/150?img=68',
-    'https://i.pravatar.cc/150?img=47',
-    'https://i.pravatar.cc/150?img=60',
-    'https://i.pravatar.cc/150?img=70',
-    'https://i.pravatar.cc/150?img=5',
-    'https://i.pravatar.cc/150?img=12',
-    'https://i.pravatar.cc/150?img=32',
-    'https://i.pravatar.cc/150?img=44',
-  ];
 
   @override
   void initState() {
     super.initState();
-    _user = ref.read(authProvider).user ?? DemoData.customer;
+    final user = ref.read(authProvider).user;
+    // لا حساب مسجّل: لا نشغّل تعديل ملف وهمي، بل نعود لشاشة الدخول.
+    if (user == null) {
+      _user = const AppUser(
+          id: '', name: '', email: '', imageUrl: '', role: AppRole.customer);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/login');
+      });
+    } else {
+      _user = user;
+    }
     _nameCtrl.text = _user.name;
     _phoneCtrl.text = _user.phone;
     _locationCtrl.text = _user.location;
@@ -52,7 +52,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (saved['phone'] != null) _phoneCtrl.text = saved['phone']!;
       if (saved['location'] != null) _locationCtrl.text = saved['location']!;
       if (saved['imageUrl'] != null) _imageUrl = saved['imageUrl']!;
-      _loaded = true;
     });
   }
 
@@ -95,55 +94,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Center(
-            child: Stack(children: [
-              CircleAvatar(
-                radius: 46,
-                backgroundImage: NetworkImage(_imageUrl),
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                child: CircleAvatar(
-                  radius: 15,
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(Icons.photo_camera_rounded,
-                      size: 15, color: Colors.white),
+            child: Column(
+              children: [
+                AppAvatar(url: _imageUrl, radius: 46, label: _nameCtrl.text),
+                const SizedBox(height: 10),
+                Text(
+                  'تُعرض صورتك بالأحرف الأولى حتى يُفعَّل رفع الصور على الخادم.',
+                  style: TextStyle(fontSize: 11.5, color: context.mutedText),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 72,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _avatars.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (_, i) {
-                final url = _avatars[i];
-                final selected = _imageUrl == url;
-                return GestureDetector(
-                  onTap: () => setState(() => _imageUrl = url),
-                  child: Container(
-                    padding: const EdgeInsets.all(2.5),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: selected
-                              ? AppColors.primary
-                              : Colors.transparent,
-                          width: 2.5),
-                    ),
-                    child: CircleAvatar(
-                      radius: 26,
-                      backgroundImage: NetworkImage(url),
-                    ),
-                  ),
-                );
-              },
+              ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           TextField(
             controller: _nameCtrl,
             decoration:
@@ -154,13 +117,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             controller: _phoneCtrl,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-                labelText: 'رقم الهاتف', hintText: '+966 5X XXX XXXX'),
+                labelText: 'رقم الهاتف', hintText: '07XXXXXXXXX'),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _locationCtrl,
             decoration: const InputDecoration(
-                labelText: 'المدينة/المنطقة', hintText: 'الرياض، حي النزهة'),
+                labelText: 'المدينة/المنطقة', hintText: 'بغداد، الكرادة'),
           ),
           const SizedBox(height: 14),
           Row(children: [
@@ -194,7 +157,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم تصدير بياناتك بنجاح 📄'),
+                        content: Text(
+                            'تصدير البيانات غير متاح حالياً — سيُفعَّل مع ربط الخادم الكامل.'),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -217,7 +181,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       builder: (ctx) => AlertDialog(
                         title: const Text('حذف الحساب'),
                         content: const Text(
-                            'سيتم حذف حسابك نهائياً بعد 30 يوماً. هل أنت متأكد؟'),
+                            'سيتم حذف حسابك وبياناتك نهائياً من الخادم. هل أنت متأكد؟'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
@@ -226,16 +190,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           FilledButton(
                             style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.error),
-                            onPressed: () {
+                            onPressed: () async {
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'تم طلب حذف الحساب — سيتم الحذف بعد 30 يوماً'),
-                                  backgroundColor: AppColors.error,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              final userId = _user.id;
+                              try {
+                                await ApiClient.delete('/auth/me');
+                              } on ApiException catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'تعذّر حذف الحساب: ${e.message}'),
+                                    backgroundColor: AppColors.error,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                                return;
+                              }
+                              if (!mounted) return;
+                              // مسح الجلسة والبيانات المحلية ثم الخروج.
+                              await LocalStore.clearAll();
+                              await ref.read(authProvider.notifier).logout();
+                              if (mounted) context.go('/login');
+                              debugPrint('delete account requested: $userId');
                             },
                             child: const Text('حذف الحساب'),
                           ),

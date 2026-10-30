@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../data/demo_data.dart';
+import '../../data/catalog.dart';
 import '../../data/models.dart';
 import '../../screens/booking_screen.dart';
 import '../../screens/chat_list_screen.dart';
-import '../../screens/conversation_screen.dart';
 import '../../screens/faq_screen.dart';
 import '../../screens/favorites_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
-import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/security_settings_screen.dart';
 import '../../screens/loyalty_screen.dart';
 import '../../screens/main_shell.dart';
@@ -24,16 +22,13 @@ import '../../screens/wallet_screen.dart';
 import '../../screens/worker_profile_screen.dart';
 import '../../screens/active_booking_screen.dart';
 import '../../screens/completion_screen.dart';
-import '../../screens/subscription_screen.dart';
 import '../../screens/compare_screen.dart';
 import '../../screens/tips_screen.dart';
 import '../../screens/support_ticket_screen.dart';
 import '../../screens/accessibility_screen.dart';
-import '../../screens/admin_audit_log_screen.dart';
-import '../../screens/company_billing_screen.dart';
-import '../../screens/sos_screen.dart';
-import '../../screens/kyc_screen.dart';
 import '../../screens/settlements_screen.dart';
+import '../../screens/not_found_screen.dart';
+import '../../screens/legal_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -45,9 +40,47 @@ const Map<String, Set<AppRole>> _roleRestrictedRoutes = {
   '/kyc': {AppRole.worker},
 };
 
+/// مسارات تتطلب تسجيل الدخول. ما عداها يُتاح للزائر (تصفح الخدمات
+/// والأسعار قبل التسجيل — متطلب App Store 5.1.1(v)).
+const Set<String> _authRequiredPrefixes = {
+  '/booking',
+  '/bookings',
+  '/payment',
+  '/chat',
+  '/wallet',
+  '/loyalty',
+  '/favorites',
+  '/addresses',
+  '/address',
+  '/referral',
+  '/settings',
+  '/active-booking',
+  '/completion',
+  '/subscription',
+  '/support',
+  '/security',
+  '/settlements',
+  '/company',
+  '/admin',
+  '/tips',
+  '/assistant',
+  '/sos',
+  '/kyc',
+  '/compare',
+  '/accessibility',
+  '/invoice',
+  '/edit-profile',
+  '/notifications',
+  '/disputes',
+};
+
+bool _requiresAuth(String location) => _authRequiredPrefixes
+    .any((prefix) => location == prefix || location.startsWith('$prefix/'));
+
 GoRouter buildRouter(
   bool Function() isLoggedIn, {
   AppRole? Function()? currentRole,
+  BookingModel? Function(String id)? bookingById,
 }) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -55,15 +88,8 @@ GoRouter buildRouter(
     redirect: (context, state) {
       final loggedIn = isLoggedIn();
       final loc = state.matchedLocation;
-      const public = {
-        '/splash',
-        '/login',
-        '/onboarding',
-        '/register',
-        '/forgot-password',
-      };
-      if (!loggedIn && !public.contains(loc)) {
-        return '/splash';
+      if (!loggedIn && _requiresAuth(loc)) {
+        return '/login';
       }
       if (loggedIn && (loc == '/splash' || loc == '/login')) {
         return '/';
@@ -102,11 +128,6 @@ GoRouter buildRouter(
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
-        path: '/forgot-password',
-        name: 'forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
-      ),
-      GoRoute(
         path: '/',
         name: 'shell',
         builder: (context, state) => const MainShell(),
@@ -118,9 +139,12 @@ GoRouter buildRouter(
           key: state.pageKey,
           child: () {
             final id = state.pathParameters['id'] ?? '';
-            final all = [...DemoData.workers, ...DemoData.companyWorkers];
-            final worker = all.where((w) => w.id == id).firstOrNull ??
-                DemoData.workers.first;
+            final worker = Catalog.byId(id);
+            if (worker == null) {
+              return const NotFoundScreen(
+                message: 'هذه الخدمة غير متاحة حالياً.',
+              );
+            }
             return WorkerProfileScreen(worker: worker);
           }(),
         ),
@@ -148,12 +172,6 @@ GoRouter buildRouter(
         name: 'chat',
         pageBuilder: (context, state) =>
             SlidePage(key: state.pageKey, child: const ChatListScreen()),
-      ),
-      GoRoute(
-        path: '/chat/support',
-        name: 'chat-support',
-        pageBuilder: (context, state) => SlidePage(
-            key: state.pageKey, child: const ConversationScreen.support()),
       ),
       GoRoute(
         path: '/wallet',
@@ -190,6 +208,16 @@ GoRouter buildRouter(
         },
       ),
       GoRoute(
+        path: '/legal/privacy',
+        name: 'legal-privacy',
+        builder: (context, state) => const LegalScreen(isPrivacy: true),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        name: 'legal-terms',
+        builder: (context, state) => const LegalScreen(isPrivacy: false),
+      ),
+      GoRoute(
         path: '/faq',
         name: 'faq',
         pageBuilder: (context, state) =>
@@ -200,9 +228,13 @@ GoRouter buildRouter(
         name: 'active-booking',
         pageBuilder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
-          final all = [...DemoData.bookings];
-          final booking = all.where((b) => b.id == id).firstOrNull ??
-              DemoData.bookings.first;
+          final booking = bookingById?.call(id);
+          if (booking == null) {
+            return SlidePage(
+              key: state.pageKey,
+              child: const NotFoundScreen(message: 'هذا الحجز غير موجود.'),
+            );
+          }
           return SlidePage(
               key: state.pageKey,
               child: ActiveBookingScreen(booking: booking));
@@ -213,19 +245,17 @@ GoRouter buildRouter(
         name: 'completion',
         pageBuilder: (context, state) {
           final id = state.pathParameters['bookingId'] ?? '';
-          final all = [...DemoData.bookings];
-          final booking = all.where((b) => b.id == id).firstOrNull ??
-              DemoData.bookings.first;
+          final booking = bookingById?.call(id);
+          if (booking == null) {
+            return SlidePage(
+              key: state.pageKey,
+              child: const NotFoundScreen(message: 'هذا الحجز غير موجود.'),
+            );
+          }
           return SlidePage(
               key: state.pageKey,
               child: CompletionScreen(booking: booking));
         },
-      ),
-      GoRoute(
-        path: '/subscription',
-        name: 'subscription',
-        pageBuilder: (context, state) =>
-            SlidePage(key: state.pageKey, child: const SubscriptionScreen()),
       ),
       GoRoute(
         path: '/compare',
@@ -263,34 +293,10 @@ GoRouter buildRouter(
             SlidePage(key: state.pageKey, child: const SecuritySettingsScreen()),
       ),
       GoRoute(
-        path: '/admin/audit',
-        name: 'admin-audit',
-        pageBuilder: (context, state) =>
-            SlidePage(key: state.pageKey, child: const AdminAuditLogScreen()),
-      ),
-      GoRoute(
-        path: '/company/billing',
-        name: 'company-billing',
-        pageBuilder: (context, state) =>
-            SlidePage(key: state.pageKey, child: const CompanyBillingScreen()),
-      ),
-      GoRoute(
         path: '/referral',
         name: 'referral',
         pageBuilder: (context, state) =>
             SlidePage(key: state.pageKey, child: const ReferralScreen()),
-      ),
-      GoRoute(
-        path: '/sos',
-        name: 'sos',
-        pageBuilder: (context, state) =>
-            SlidePage(key: state.pageKey, child: const SosScreen()),
-      ),
-      GoRoute(
-        path: '/kyc',
-        name: 'kyc',
-        pageBuilder: (context, state) =>
-            SlidePage(key: state.pageKey, child: const KycScreen()),
       ),
       GoRoute(
         path: '/settlements',

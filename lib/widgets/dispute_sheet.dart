@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/theme/adaptive.dart';
-import '../../data/repository.dart';
+import '../core/api/api_client.dart';
+import '../core/theme/app_theme.dart';
+import '../core/theme/adaptive.dart';
+import '../data/repository.dart';
 
-/// Opens the dispute-creation bottom sheet, wired to the backend
-/// (graceful demo fallback inside TrustRepository).
+/// نموذج فتح نزاع مرتبط بحجز فعلي على الخادم.
 Future<void> openDisputeSheet(
   BuildContext context, {
   required String bookingId,
@@ -94,17 +94,26 @@ Future<void> openDisputeSheet(
                       return;
                     }
                     Navigator.pop(ctx);
-                    final res = await TrustRepository.openDispute(
-                      bookingId: bookingId,
-                      category: category,
-                      subject: subjectCtrl.text.trim(),
-                      detail: detailCtrl.text.trim(),
-                    );
+                    String message;
+                    Color color;
+                    try {
+                      await TrustRepository.openDispute(
+                        bookingId: bookingId,
+                        category: category,
+                        subject: subjectCtrl.text.trim(),
+                        detail: detailCtrl.text.trim(),
+                      );
+                      message = 'تم استلام نزاعك، وسيُراجع خلال 48 ساعة';
+                      color = AppColors.primary;
+                    } on ApiException catch (e) {
+                      message = e.message;
+                      color = AppColors.error;
+                    }
                     if (!ctx.mounted) return;
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
-                        content: Text(res.message),
-                        backgroundColor: AppColors.primary,
+                        content: Text(message),
+                        backgroundColor: color,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );

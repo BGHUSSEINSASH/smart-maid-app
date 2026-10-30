@@ -13,15 +13,8 @@ import '../providers/health_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../providers/reminders_provider.dart';
 import 'address_screen.dart';
-import 'admin_companies_screen.dart';
-import 'admin_disputes_screen.dart';
-import 'admin_finance_screen.dart';
-import 'admin_screen.dart';
 import 'booking_screen.dart';
 import 'chat_list_screen.dart';
-import 'company_bookings_screen.dart';
-import 'company_dashboard_screen.dart';
-import 'company_workers_screen.dart';
 import 'faq_screen.dart';
 import 'favorites_screen.dart';
 import 'home_screen.dart';
@@ -29,7 +22,6 @@ import 'loyalty_screen.dart';
 import 'my_bookings_screen.dart';
 import 'offers_screen.dart';
 import 'profile_screen.dart';
-import 'subscription_screen.dart';
 import 'tips_screen.dart';
 import 'support_ticket_screen.dart';
 import 'accessibility_screen.dart';
@@ -39,8 +31,7 @@ import 'wallet_screen.dart';
 import 'worker_dashboard_screen.dart';
 import 'worker_requests_screen.dart';
 import 'worker_schedule_screen.dart';
-import 'sos_screen.dart';
-import 'kyc_screen.dart';
+import 'unsupported_role_screen.dart';
 import 'settlements_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
@@ -95,10 +86,9 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    if (authState.user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    final user = authState.user!;
+    // الزائر: تصفح الخدمات والأسعار بدون حساب (App Store 5.1.1(v)).
+    final user = authState.user;
+    if (user == null) return const GuestShell();
     final tabs = _tabsForRole(user.role);
     final safeIndex = _index < tabs.length ? _index : 0;
     final showFab = user.role == AppRole.customer;
@@ -183,19 +173,19 @@ class _MainShellState extends ConsumerState<MainShell> {
         ];
       case AppRole.company:
         return [
-          _Tab(t.tabDashboard, Icons.dashboard_outlined, Icons.dashboard_rounded, const CompanyDashboardScreen()),
-          _Tab(t.tabIncoming, Icons.inbox_outlined, Icons.inbox_rounded, const CompanyBookingsScreen()),
-          _Tab(t.tabWorkers, Icons.groups_outlined, Icons.groups_rounded, const CompanyWorkersScreen()),
-          _Tab(t.tabChat, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, const ChatListScreen()),
-          _Tab(t.tabProfile, Icons.person_outline_rounded, Icons.person_rounded, const ProfileScreen()),
+          _Tab(t.tabDashboard, Icons.desktop_windows_outlined,
+              Icons.desktop_windows_rounded,
+              const UnsupportedRoleScreen(role: AppRole.company)),
+          _Tab(t.tabProfile, Icons.person_outline_rounded,
+              Icons.person_rounded, const ProfileScreen()),
         ];
       case AppRole.admin:
         return [
-          _Tab(t.tabDashboard, Icons.admin_panel_settings_outlined, Icons.admin_panel_settings_rounded, const AdminScreen()),
-          _Tab(t.tabCompanies, Icons.domain_outlined, Icons.domain_rounded, const AdminCompaniesScreen()),
-          _Tab(t.tabFinance, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, const AdminFinanceScreen()),
-          _Tab(t.tabDisputes, Icons.gavel_outlined, Icons.gavel_rounded, const AdminDisputesScreen()),
-          _Tab(t.tabProfile, Icons.person_outline_rounded, Icons.person_rounded, const ProfileScreen()),
+          _Tab(t.tabDashboard, Icons.desktop_windows_outlined,
+              Icons.desktop_windows_rounded,
+              const UnsupportedRoleScreen(role: AppRole.admin)),
+          _Tab(t.tabProfile, Icons.person_outline_rounded,
+              Icons.person_rounded, const ProfileScreen()),
         ];
     }
   }
@@ -500,18 +490,12 @@ class _AppDrawer extends StatelessWidget {
                 onTap: () { Navigator.pop(context); onWallet(); }),
             _DrawerItem(icon: Icons.emoji_events_rounded, label: t.loyaltyPoints, surface: surface, textColor: textColor,
                 onTap: () { Navigator.pop(context); onLoyalty(); }),
-            _DrawerItem(icon: Icons.workspace_premium_rounded, label: 'SmartGold', surface: surface, textColor: textColor,
-                onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())); }),
             _DrawerItem(icon: Icons.card_giftcard_rounded, label: t.offersCoupons, surface: surface, textColor: textColor,
                 onTap: () { Navigator.pop(context); onOffers(); }),
             _DrawerItem(icon: Icons.location_on_rounded, label: t.myAddresses, surface: surface, textColor: textColor,
                 onTap: () { Navigator.pop(context); onAddresses(); }),
             _DrawerItem(icon: Icons.lightbulb_rounded, label: 'نصائح التنظيف', surface: surface, textColor: textColor,
                 onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const TipsScreen())); }),
-            _DrawerItem(icon: Icons.emergency_rounded, label: 'زر الطوارئ', surface: surface, textColor: textColor,
-                onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SosScreen())); }),
-            _DrawerItem(icon: Icons.verified_user_rounded, label: 'توثيق الهوية (KYC)', surface: surface, textColor: textColor,
-                onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const KycScreen())); }),
             _DrawerItem(icon: Icons.savings_rounded, label: 'أرباحي ومستحقاتي', surface: surface, textColor: textColor,
                 onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SettlementsScreen())); }),
             _DrawerItem(icon: Icons.support_agent_rounded, label: 'تذكرة دعم', surface: surface, textColor: textColor,
@@ -577,6 +561,86 @@ class _DrawerItem extends StatelessWidget {
                         color: textColor)),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// واجهة الزائر: تصفح الخدمات والأسعار، وزر تسجيل الدخول عند الحجز.
+class GuestShell extends ConsumerStatefulWidget {
+  const GuestShell({super.key});
+
+  @override
+  ConsumerState<GuestShell> createState() => _GuestShellState();
+}
+
+class _GuestShellState extends ConsumerState<GuestShell> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: context.pageBg,
+      body: IndexedStack(
+        index: _index,
+        children: const [HomeScreen(), SearchScreen(), _GuestProfileTab()],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) {
+          if (i == 2) {
+            context.push('/login');
+            return;
+          }
+          setState(() => _index = i);
+        },
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'الرئيسية'),
+          NavigationDestination(
+              icon: Icon(Icons.search_rounded),
+              selectedIcon: Icon(Icons.manage_search_rounded),
+              label: 'الخدمات'),
+          NavigationDestination(
+              icon: Icon(Icons.login_rounded),
+              selectedIcon: Icon(Icons.login_rounded),
+              label: 'الدخول'),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestProfileTab extends StatelessWidget {
+  const _GuestProfileTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline_rounded,
+                  size: 56, color: AppColors.muted),
+              const SizedBox(height: 16),
+              const Text(
+                'سجّل الدخول لإتمام الحجز',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'يمكنك تصفح الخدمات والأسعار بدون حساب.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted),
+              ),
+            ],
           ),
         ),
       ),

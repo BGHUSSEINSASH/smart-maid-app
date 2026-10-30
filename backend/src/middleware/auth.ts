@@ -1,25 +1,42 @@
 import jwt from 'jsonwebtoken';
 import { NextFunction, Request, Response } from 'express';
-import { AppRole, parseUserFromToken, users, User } from '../store';
+import { AppRole, findUserById, User } from '../store';
 
 export interface AuthedRequest extends Request {
   user?: User;
 }
 
-function resolveTokenUser(token?: string): User | undefined {
-  if (!token) return undefined;
-
+export function signToken(user: Pick<User, 'id' | 'role'>): string {
   const secret = process.env.JWT_SECRET;
-  if (secret) {
-    try {
-      const payload = jwt.verify(token, secret) as { sub?: string };
-      return users.find((u) => u.id === payload.sub);
-    } catch {
-      return undefined;
-    }
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET is not set — refusing to issue an insecure token.',
+    );
   }
+  return jwt.sign({ sub: user.id, role: user.role }, secret, {
+    expiresIn: '7d',
+  });
+}
 
-  return parseUserFromToken(token);
+export function resolveTokenUser(token?: string): User | undefined {
+  if (!token) return undefined;
+  const secret = process.env.JWT_SECRET;
+  // بدون سرّ موقّع لا نقبل أي رمز — رفض صريح بدل قبول tokens قابلة للتزوير.
+  if (!secret) return undefined;
+  try {
+    const payload = jwt.verify(token, secret) as { sub?: string };
+    if (!payload.sub) return undefined;
+    return findUserById(payload.sub);
+  } catch {
+    return undefined;
+  }
+}
+
+export function tokenFromRequest(req: Request): string | undefined {
+  const authorization = req.header('authorization') ?? '';
+  return authorization.startsWith('Bearer ')
+    ? authorization.slice(7)
+    : undefined;
 }
 
 export function requireAuth(
@@ -27,14 +44,17 @@ export function requireAuth(
   res: Response,
   next: NextFunction,
 ): void {
-  const authorization = req.header('authorization') ?? '';
-  const token = authorization.startsWith('Bearer ')
-    ? authorization.slice(7)
-    : undefined;
-  const user = resolveTokenUser(token);
+  const user = resolveTokenUser(tokenFromRequest(req));
 
   if (!user) {
     res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+  if (user.suspended) {
+    res.status(403).json({
+      error: 'account_suspended',
+      message: user.suspendReason || 'تم تعليق حسابك. تواصل مع الدعم.',
+    });
     return;
   }
 

@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
 import '../data/models.dart';
-import '../data/repository.dart';
+import '../core/api/api_client.dart';
 import '../providers/booking_provider.dart';
-import '../providers/wallet_provider.dart';
-import 'booking_detail_screen.dart' show BookingOtp;
 
 class CompletionScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
@@ -38,18 +36,7 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
 
   bool get _allChecked => _checklist.every((c) => c);
 
-  void _submit() {
-    final expected = BookingOtp.codeFor(widget.booking.id);
-    if (_otpCtrl.text.trim() != expected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('الكود غير صحيح — اطلب الكود من العميل'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+  Future<void> _submit() async {
     if (!_allChecked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -61,10 +48,24 @@ class _CompletionScreenState extends ConsumerState<CompletionScreen> {
       return;
     }
 
-    ref.read(myBookingsProvider.notifier).completeBooking(widget.booking.id);
-    ref.read(myBookingsProvider.notifier).markPaid(widget.booking.id);
-    ref.read(walletProvider.notifier).addEarning(
-        widget.booking.total * 0.8, 'أرباح مهمة ${widget.booking.service}');
+    // الإنهاء يُسجّل على الخادم، وهو من يحسب الأرباح والنقاط.
+    try {
+      await ApiClient.patch('/bookings/${widget.booking.id}/status', {
+        'status': 'completed',
+      });
+      await refreshBookings(ref);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

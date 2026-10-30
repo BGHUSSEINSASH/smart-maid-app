@@ -45,19 +45,53 @@ class AppImage extends StatelessWidget {
   }
 }
 
+/// صورة شخصية مع بديل بالأحرف الأولى.
+///
+/// التطبيق لا يستخدم صور أشخاص حقيقيين من الإنترنت؛ وعند عدم وجود صورة
+/// يُعرض الحرف الأول من الاسم بدل رابط خارجي (Apple 5.1.2 / Play User Data).
 class AppAvatar extends StatelessWidget {
   final String url;
   final double radius;
+  final String label;
 
-  const AppAvatar({super.key, required this.url, this.radius = 24});
+  const AppAvatar({
+    super.key,
+    required this.url,
+    this.radius = 24,
+    this.label = '',
+  });
+
+  String get _initials {
+    final trimmed = label.trim();
+    if (trimmed.isEmpty) return '؟';
+    final parts = trimmed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    return parts.take(2).map((p) => p.characters.first).join();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final background =
+        context.isDark ? Colors.white10 : const Color(0xFFE9EDF7);
+    if (url.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: background,
+        child: Text(
+          _initials,
+          style: TextStyle(
+            fontSize: radius * 0.7,
+            fontWeight: FontWeight.w800,
+            color: context.isDark ? Colors.white70 : AppColors.primary,
+          ),
+        ),
+      );
+    }
     return CircleAvatar(
       radius: radius,
-      backgroundColor:
-          context.isDark ? Colors.white10 : const Color(0xFFE9EDF7),
+      backgroundColor: background,
       backgroundImage: NetworkImage(url),
+      onBackgroundImageError: (_, _) {},
+      child: const SizedBox.shrink(),
     );
   }
 }

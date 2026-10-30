@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../core/nav/app_nav.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
 import '../providers/booking_provider.dart';
-import '../providers/chat_provider.dart';
 import '../providers/currency_provider.dart';
 import '../widgets/app_image.dart';
 import '../widgets/dispute_sheet.dart';
 import 'booking_screen.dart';
+import 'conversation_screen.dart';
 import 'invoice_screen.dart';
 import 'payment_screen.dart';
 import 'active_booking_screen.dart';
@@ -155,16 +154,17 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
   }
 
   void _openChat() {
-    final worker = ref
-        .read(myBookingsProvider)
-        .where((x) => x.id == b.id)
-        .map((x) => x.workerId)
-        .firstOrNull;
-    final w = DemoData.byId(worker ?? '');
-    if (w != null) {
-      ref.read(chatProvider.notifier).startConversation(w, 'u1');
-    }
-    context.push('/chat');
+    // المحادثة مرتبطة بحجز معيّن على الخادم — لا محادثة «وهمية» قبل الحجز.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ConversationScreen(
+          bookingId: b.id,
+          title: b.workerName,
+          avatarUrl: b.workerImage,
+        ),
+      ),
+    );
   }
 
   @override
@@ -463,7 +463,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: b.beforeAfterPhotos.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
                       itemBuilder: (context, i) {
                         return ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -472,7 +472,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                             width: 120,
                             height: 100,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               width: 120,
                               height: 100,
                               color: AppColors.stroke,
@@ -500,7 +500,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     icon: Icons.payments_rounded,
                     filled: true,
                     onTap: () => AppNav.pushSlide(
-                        context, const PaymentScreen())),
+                        context, PaymentScreen(bookingId: b.id))),
               if (b.status == BookingStatus.inProgress) ...[
                 _Action(
                     label: 'تتبع العاملة',
@@ -512,7 +512,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     label: 'الفاتورة',
                     icon: Icons.receipt_long_rounded,
                     onTap: () => AppNav.pushSlide(
-                        context, InvoiceScreen())),
+                        context, InvoiceScreen(bookingId: b.id))),
               ],
               if (b.status == BookingStatus.confirmed) ...[
                 _Action(
@@ -523,7 +523,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     label: 'الفاتورة',
                     icon: Icons.receipt_long_rounded,
                     onTap: () => AppNav.pushSlide(
-                        context, InvoiceScreen())),
+                        context, InvoiceScreen(bookingId: b.id))),
                 _Action(
                     label: 'إلغاء الحجز',
                     icon: Icons.cancel_outlined,
@@ -535,7 +535,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     label: 'الفاتورة',
                     icon: Icons.receipt_long_rounded,
                     onTap: () => AppNav.pushSlide(
-                        context, InvoiceScreen())),
+                        context, InvoiceScreen(bookingId: b.id))),
                 _Action(
                     label: 'فتح نزاع',
                     icon: Icons.gavel_rounded,
@@ -549,7 +549,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     onTap: () {
                       final flow = ref.read(bookingFlowProvider.notifier);
                       flow.reset();
-                      final w = DemoData.byId(b.workerId);
+                      final w = Catalog.byId(b.workerId);
                       if (w != null) flow.selectWorker(w);
                       AppNav.pushSlide(context, const BookingScreen());
                     }),
@@ -562,7 +562,7 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     onTap: () {
                       final flow = ref.read(bookingFlowProvider.notifier);
                       flow.reset();
-                      final w = DemoData.byId(b.workerId);
+                      final w = Catalog.byId(b.workerId);
                       if (w != null) flow.selectWorker(w);
                       AppNav.pushSlide(context, const BookingScreen());
                     }),

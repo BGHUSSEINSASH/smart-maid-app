@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
-import '../data/demo_data.dart';
 
 class WorkerScheduleScreen extends StatefulWidget {
   const WorkerScheduleScreen({super.key});

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
-import '../data/demo_data.dart';
+import '../data/catalog.dart';
 import '../providers/currency_provider.dart';
 import 'worker_profile_screen.dart';
 
@@ -21,8 +21,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   double _minRating = 0;
   String? _city;
   bool _availableOnly = false;
-
-  static const _cities = ['الكل', 'الرياض', 'جدة', 'الدمام'];
 
   @override
   void dispose() {
@@ -49,9 +47,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final currency = ref.watch(currencyProvider);
-    final all = [...DemoData.workers, ...DemoData.companyWorkers];
+    final all = [...Catalog.workers, ...Catalog.companyWorkers];
     final results = all.where(_matches).toList();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // المدن تُشتق من بيانات الخادم الفعلية — لا قيم مُثبتة.
+    final cities = [
+      'الكل',
+      ...{for (final w in all) w.location}.where((c) => c.trim().isNotEmpty),
+    ];
 
     return Scaffold(
       backgroundColor:
@@ -84,7 +87,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                for (final c in DemoData.categories)
+                for (final c in Catalog.categories)
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: ChoiceChip(
@@ -154,7 +157,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       decoration: const InputDecoration(
                           labelText: 'المدينة',
                           contentPadding: EdgeInsets.symmetric(horizontal: 12)),
-                      items: _cities
+                      items: cities
                           .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                           .toList(),
                       onChanged: (v) => setState(() => _city = v),

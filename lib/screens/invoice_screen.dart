@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import '../core/theme/app_theme.dart';
 import '../data/models.dart';
@@ -11,11 +13,20 @@ import '../providers/booking_provider.dart';
 import '../providers/currency_provider.dart';
 
 class InvoiceScreen extends ConsumerWidget {
-  const InvoiceScreen({super.key});
+  const InvoiceScreen({super.key, this.bookingId});
+
+  /// معرّف الحجز المضغوط — حتى لا تُعرض فاتورة حجز آخر بالخطأ.
+  final String? bookingId;
 
   BookingModel? _resolveBooking(WidgetRef ref) {
-    final flow = ref.watch(bookingFlowProvider);
     final bookings = ref.watch(myBookingsProvider);
+    // أولاً: الحجز الذي ضغط عليه المستخدم.
+    if (bookingId != null) {
+      for (final b in bookings) {
+        if (b.id == bookingId) return b;
+      }
+    }
+    final flow = ref.watch(bookingFlowProvider);
     if (flow.bookingId != null) {
       for (final b in bookings) {
         if (b.id == flow.bookingId) return b;
@@ -24,8 +35,21 @@ class InvoiceScreen extends ConsumerWidget {
     return bookings.isNotEmpty ? bookings.first : null;
   }
 
+  /// تحميل خط عربي مضمّن حتى لا تُطبع الحروف العربية مربعات في PDF.
+  Future<pw.Font?> _arabicFont() async {
+    try {
+      final bytes = await rootBundle.load('assets/fonts/Cairo-Variable.ttf');
+      return pw.Font.ttf(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String> _generatePdf(BookingModel b, String currencyLabel) async {
-    final doc = pw.Document();
+    final arabic = await _arabicFont();
+    final doc = pw.Document(
+      theme: pw.ThemeData.withFont(base: arabic, bold: arabic),
+    );
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -221,22 +245,22 @@ class InvoiceScreen extends ConsumerWidget {
                   final path = await _generatePdf(
                       booking, currency.code == 'USD' ? 'USD' : 'IQD');
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('تم حفظ الفاتورة في:\n$path'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppColors.success,
+                    // مشاركة الفاتورة عبر ورقة المشاركة بدل عرض المسار الخام.
+                    await SharePlus.instance.share(ShareParams(
+                      files: [XFile(path)],
+                      subject: 'فاتورة حجز ${booking.id}',
                     ));
                   }
                 } catch (_) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('تعذر حفظ الملف'),
+                        content: Text('تعذر إنشاء ملف الفاتورة'),
                         behavior: SnackBarBehavior.floating));
                   }
                 }
               },
-              icon: const Icon(Icons.picture_as_pdf_rounded, size: 19),
-              label: const Text('حفظ كملف PDF'),
+              icon: const Icon(Icons.share_rounded, size: 19),
+              label: const Text('مشاركة الفاتورة'),
             ),
           ),
         ),

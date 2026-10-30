@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/session/session_store.dart';
 import '../core/storage/local_store.dart';
+import '../data/catalog.dart';
 import '../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/security_provider.dart';
@@ -23,6 +24,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _bootstrap() async {
     await LocalStore.hydrate();
+    // كتالوج الخدمات من الخادم — لا قائمة تجريبية داخل التطبيق.
+    await Catalog.hydrate();
     await ref.read(authProvider.notifier).restoreSession();
     await ref.read(securityProvider.notifier).load();
     await Future.delayed(const Duration(milliseconds: 1400));
@@ -33,7 +36,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!onboarded) {
       context.go('/onboarding');
     } else {
-      context.go(loggedIn ? '/' : '/login');
+      // الزائر يصل للرئيسية ويتصفح، والتسجيل يُطلب عند الحجز.
+      context.go(loggedIn ? '/' : '/');
     }
   }
 

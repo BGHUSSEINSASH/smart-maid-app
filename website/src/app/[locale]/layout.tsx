@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "شغّالتي | SmartMaid — خدمات منزلية ذكية",
-  description: "احجز عاملات منزل موثّقات خلال دقيقة واحدة. بحث صوتي ذكي، دفع آمن، وتتبّع لحظي.",
+  description: "احجز خدمة منزلية واضحة السعر: تنظيف، رعاية أطفال، أو طبخ. تدفع بعد إتمام الخدمة.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },

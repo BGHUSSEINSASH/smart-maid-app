@@ -9,14 +9,14 @@ export default function Footer() {
 
   const cols = ar
     ? [
-        { t: "المنتج", ls: [["المميزات","#features"],["كيف يعمل","#how"],["الأسعار","#pricing"],["تحميل","#download"]] },
-        { t: "الشركة", ls: [["من نحن","#"],["اتصل بنا","#"],["الوظائف","#"],["المدونة","#"]] },
-        { t: "قانوني", ls: [["الشروط والأحكام","#"],["سياسة الخصوصية","#"],["إخلاء المسؤولية","#"]] },
+        { t: "المنتج", ls: [["المميزات","#features"],["كيف يعمل","#how"],["تحميل","#download"]] },
+        { t: "الشركة", ls: [["اتصل بنا","mailto:support@shaghalti.app"]] },
+        { t: "قانوني", ls: [["الشروط والأحكام","terms"],["سياسة الخصوصية","privacy"]] },
       ]
     : [
-        { t: "Product", ls: [["Features","#features"],["How it works","#how"],["Pricing","#pricing"],["Download","#download"]] },
-        { t: "Company", ls: [["About","#"],["Contact","#"],["Careers","#"],["Blog","#"]] },
-        { t: "Legal", ls: [["Terms & Conditions","#"],["Privacy Policy","#"],["Disclaimer","#"]] },
+        { t: "Product", ls: [["Features","#features"],["How it works","#how"],["Download","#download"]] },
+        { t: "Company", ls: [["Contact","mailto:support@shaghalti.app"]] },
+        { t: "Legal", ls: [["Terms & Conditions","terms"],["Privacy Policy","privacy"]] },
       ];
 
   return (
@@ -68,15 +68,11 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="divider" style={{ marginBottom: "1.5rem" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, fontSize: ".8rem", color: "var(--text-3)" }}>
-          <span>© {new Date().getFullYear()} SmartMaid — {ar ? "جميع الحقوق محفوظة" : "All rights reserved"}</span>
+          <span>© {new Date().getFullYear()} شغّالتي — {ar ? "جميع الحقوق محفوظة" : "All rights reserved"}</span>
           <div style={{ display: "flex", gap: "1.25rem" }}>
-            {(ar ? ["الشروط","الخصوصية"] : ["Terms","Privacy"]).map(l => (
-              <a key={l} href="#" style={{ color: "var(--text-3)", textDecoration: "none" }}
-                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = "var(--indigo)"}
-                onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = "var(--text-3)"}>
-                {l}
-              </a>
-            ))}
+            <a href="terms" style={{ color: "var(--text-3)", textDecoration: "none" }}>{ar ? "الشروط" : "Terms"}</a>
+            <a href="privacy" style={{ color: "var(--text-3)", textDecoration: "none" }}>{ar ? "الخصوصية" : "Privacy"}</a>
+            <a href="mailto:support@shaghalti.app" style={{ color: "var(--text-3)", textDecoration: "none" }}>{ar ? "الدعم" : "Support"}</a>
           </div>
         </div>
       </div>

@@ -41,23 +41,8 @@ class AddressModel {
 }
 
 class AddressNotifier extends StateNotifier<List<AddressModel>> {
-  AddressNotifier()
-      : super(LocalStore.addressesCache ??
-            const [
-              AddressModel(
-                id: 'a1',
-                label: 'المنزل',
-                city: 'الرياض',
-                details: 'حي النزهة، شارع الأمير سلطان، مبنى 12، شقة 3',
-                isDefault: true,
-              ),
-              AddressModel(
-                id: 'a2',
-                label: 'المكتب',
-                city: 'الرياض',
-                details: 'طريق الملك فهد، برج المملكة، الدور 14',
-              ),
-            ]);
+  // حساب جديد بلا عناوين وهمية — المستخدم يضيف عناوينه بنفسه.
+  AddressNotifier() : super(LocalStore.addressesCache ?? const []);
 
   void add(String label, String city, String details,
       {double? lat, double? lon}) {

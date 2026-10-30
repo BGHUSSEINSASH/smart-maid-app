@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appName => 'شغالتي';
+  String get appName => 'Smart Maid';
 
   @override
   String get tabHome => 'الرئيسية';
@@ -142,7 +142,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get rateService => 'قيّم الخدمة';
 
   @override
-  String get smartAssistant => 'المساعد';
+  String get smartAssistant => 'المساعد الذكي';
 
   @override
   String get achievements => 'الإنجازات';

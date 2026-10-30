@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
-import '../data/demo_data.dart';
 import '../data/models.dart';
 import '../providers/address_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
-import '../providers/currency_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/loyalty_provider.dart';
+import '../widgets/app_image.dart';
 import 'address_screen.dart';
 import 'catalog_screen.dart';
 import 'edit_profile_screen.dart';
@@ -28,7 +28,38 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final user = auth.user ?? DemoData.admin;
+    final user = auth.user;
+
+    // لا حساب مسجّل: لا نعرض هوية بديلة مخترعة، بل شاشة دخول صريحة.
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: context.pageBg,
+        appBar: AppBar(title: const Text('حسابي')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_outline_rounded,
+                    size: 56, color: AppColors.muted),
+                const SizedBox(height: 14),
+                const Text('سجّل الدخول لعرض حسابك وحجوزاتك',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 18),
+                ElevatedButton(
+                  onPressed: () => context.go('/login'),
+                  child: const Text('تسجيل الدخول'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final bookingsCount = ref.watch(myBookingsProvider).length;
     final favCount = ref.watch(favoritesProvider).length;
     final points = ref.watch(loyaltyProvider).points;
@@ -51,10 +82,10 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
+                    AppAvatar(
+                      url: user.imageUrl,
                       radius: 32,
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      backgroundImage: NetworkImage(user.imageUrl),
+                      label: user.name,
                     ),
                     const SizedBox(width: 14),
                     Expanded(

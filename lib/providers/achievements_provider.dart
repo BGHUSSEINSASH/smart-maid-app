@@ -54,7 +54,7 @@ final achievementsProvider = Provider<AchievementsState>((ref) {
     ('three_bookings', '🔥', 'منظم', '3 حجوزات مكتملة', completed >= 3),
     ('reviewer', '⭐', 'صوت مؤثر', 'قيّمت خدمة واحدة على الأقل', hasReview),
     ('saver', '💰', 'موفر', 'استخدمت كوبون خصم', usedCoupon),
-    ('collector', '❤️', 'ذوذوق', 'أضفت عاملة للمفضلة', favCount > 0),
+    ('collector', '❤️', 'ذو ذوق', 'أضفت عاملة للمفضلة', favCount > 0),
     (
       'loyal',
       '🏆',

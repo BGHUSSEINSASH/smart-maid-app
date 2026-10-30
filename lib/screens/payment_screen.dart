@@ -1,97 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:confetti/confetti.dart';
-import '../core/api/api_client.dart';
 import '../core/nav/app_nav.dart';
 import '../core/theme/app_theme.dart';
 import '../data/models.dart';
 import '../providers/booking_provider.dart';
 import '../providers/currency_provider.dart';
-import '../providers/loyalty_provider.dart';
 import '../providers/offers_provider.dart';
-import '../providers/wallet_provider.dart';
 import 'invoice_screen.dart';
 
-enum PayMethod { card, wallet, cash }
+/// الإصدار الأول يتيح الدفع النقدي عند إتمام الخدمة فقط، فلا تُجمع أي
+/// بيانات بطاقة داخل التطبيق. الدفع بالبطاقة يظهر عند تهيئة مزوّد الدفع.
+enum PayMethod { cash }
 
 class PaymentScreen extends ConsumerStatefulWidget {
-  const PaymentScreen({super.key});
+  const PaymentScreen({super.key, this.bookingId});
+
+  /// معرّف الحجز المضغوط — حتى لا يدفع المستخدم حجزاً آخر بالخطأ.
+  final String? bookingId;
 
   @override
   ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
 class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  PayMethod _method = PayMethod.card;
+  PayMethod _method = PayMethod.cash;
   bool _processing = false;
   bool _paid = false;
   bool _failed = false;
   String _failReason = '';
   late final ConfettiController _confettiCtrl =
       ConfettiController(duration: const Duration(seconds: 3));
-  final _cardCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
-  final _expCtrl = TextEditingController();
-  final _cvvCtrl = TextEditingController();
 
   @override
   void dispose() {
     _confettiCtrl.dispose();
-    _cardCtrl.dispose();
-    _nameCtrl.dispose();
-    _expCtrl.dispose();
-    _cvvCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pay() async {
-    final totals = ref.read(bookingTotalsProvider);
-    if (_method == PayMethod.wallet) {
-      final balance = ref.read(walletProvider).balanceUsd;
-      if (balance < totals.total) {
-        _toast('رصيد المحفظة غير كافٍ — اشحن المحفظة أولاً');
-        return;
-      }
-      ref
-          .read(walletProvider.notifier)
-          .pay(totals.total, 'دفع حجز عبر SmartPay');
-    }
-    if (_method == PayMethod.card &&
-        _cardCtrl.text.replaceAll(' ', '').length < 12) {
-      _toast('أدخل رقم بطاقة صحيح');
-      return;
-    }
-    setState(() => _processing = true);
-    await Future.delayed(const Duration(seconds: 2));
-
-    final digits = _cardCtrl.text.replaceAll(' ', '');
-    if (_method == PayMethod.card && digits == '4000000000000002') {
-      setState(() {
-        _processing = false;
-        _failed = true;
-        _failReason = 'رفضت البطاقة العملية (بطاقة اختبار مرفوضة). جرّب بطاقة أخرى أو المحفظة.';
-      });
-      Haptics.medium();
-      return;
-    }
-
     final flow = ref.read(bookingFlowProvider);
-    final intent = await ApiClient.post('/payments/intent', {
-      'bookingId': flow.bookingId ?? '',
-      'amount': totals.total,
-    });
-    if (intent == null && !ApiClient.demoOnly) {
-      debugPrint('payments API unreachable — continuing in demo mode');
+    final targetId = widget.bookingId ?? flow.bookingId;
+    if (targetId == null) {
+      setState(() {
+        _failed = true;
+        _failReason = 'لم يُسجّل الحجز على الخادم. ارجع وأعد المحاولة.';
+      });
+      return;
     }
-
-    if (flow.bookingId != null) {
-      ref.read(myBookingsProvider.notifier).markPaid(flow.bookingId!);
-      ref.read(myBookingsProvider.notifier).confirmBooking(flow.bookingId!);
-    }
-    ref
-        .read(bookingFlowProvider.notifier)
-        .setStatus(bookingStatus: 'confirmed', paymentStatus: 'held');
+    // لا حركة مالية داخل التطبيق: الحجز أُنشئ على الخادم والدفع نقداً عند
+    // إتمام الخدمة. هذه الشاشة تُأكّد الإرسال فقط.
     ref.read(couponProvider.notifier).clear();
+    ref.read(myBookingsProvider.notifier).confirmBooking(targetId);
     setState(() {
       _processing = false;
       _paid = true;
@@ -100,20 +60,23 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
     _confettiCtrl.play();
   }
 
-  void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final totals = ref.watch(bookingTotalsProvider);
     final currency = ref.watch(currencyProvider);
     final flow = ref.watch(bookingFlowProvider);
-    final wallet = ref.watch(walletProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.surfaceDark : Colors.white;
+
+    // مبلغ الحجز المضغوط أولاً؛ المسودة فقط عند بدء حجز جديد.
+    final bookings = ref.watch(myBookingsProvider);
+    BookingModel? opened;
+    if (widget.bookingId != null) {
+      for (final b in bookings) {
+        if (b.id == widget.bookingId) opened = b;
+      }
+    }
+    final amount = opened?.total ?? totals.total;
+    final workerName = opened?.workerName ?? flow.worker?.name ?? '';
 
     return Scaffold(
       backgroundColor:
@@ -142,14 +105,16 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   const Text('المبلغ المطلوب',
                       style: TextStyle(color: Colors.white70, fontSize: 13)),
                   const SizedBox(height: 6),
-                  Text(currency.format(totals.total),
+                  Text(currency.format(amount),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 30,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   Text(
-                    '${flow.worker?.name ?? ''} • ${flow.bookingTypeLabel}',
+                    workerName.isEmpty
+                        ? flow.bookingTypeLabel
+                        : '$workerName • ${flow.bookingTypeLabel}',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ],
@@ -158,66 +123,19 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             const SizedBox(height: 24),
             const Text('طريقة الدفع',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            const Text(
+              'الدفع نقداً للعاملة بعد إتمام الخدمة. لا تُدخل بيانات بطاقة في التطبيق.',
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
             const SizedBox(height: 12),
             _MethodTile(
-              icon: Icons.credit_card_rounded,
-              title: 'بطاقة بنكية',
-              subtitle: 'Visa / MasterCard',
-              selected: _method == PayMethod.card,
-              onTap: () => setState(() => _method = PayMethod.card),
-            ),
-            const SizedBox(height: 10),
-            _MethodTile(
-              icon: Icons.account_balance_wallet_rounded,
-              title: 'محفظة SmartPay',
-              subtitle:
-                  'الرصيد: ${currency.format(wallet.balanceUsd)}',
-              selected: _method == PayMethod.wallet,
-              onTap: () => setState(() => _method = PayMethod.wallet),
-            ),
-            const SizedBox(height: 10),
-            _MethodTile(
               icon: Icons.payments_rounded,
-              title: 'نقداً عند الوصول',
-              subtitle: 'ادفع نقداً للعاملة بعد إتمام الخدمة',
+              title: 'نقداً عند إتمام الخدمة',
+              subtitle: 'لا يُخصم أي مبلغ الآن',
               selected: _method == PayMethod.cash,
               onTap: () => setState(() => _method = PayMethod.cash),
             ),
-            if (_method == PayMethod.card) ...[
-              const SizedBox(height: 24),
-              TextField(
-                controller: _cardCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                    labelText: 'رقم البطاقة', hintText: '4242 4242 4242 4242'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _nameCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'اسم حامل البطاقة'),
-              ),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _expCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'تاريخ الانتهاء', hintText: 'MM/YY'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _cvvCtrl,
-                    obscureText: true,
-                    keyboardType: TextInputType.number,
-                    decoration:
-                        const InputDecoration(labelText: 'CVV', hintText: '•••'),
-                  ),
-                ),
-              ]),
-            ],
           ],
         ),
       ),
@@ -239,10 +157,10 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.lock_rounded, size: 18),
+                      : const Icon(Icons.check_circle_outline_rounded, size: 18),
                   label: Text(_processing
-                      ? 'جارٍ المعالجة...'
-                      : 'ادفع ${currency.format(totals.total)}'),
+                      ? 'جارٍ التأكيد...'
+                      : 'تأكيد الحجز — ${currency.format(amount)}'),
                 ),
               ),
             )
@@ -343,12 +261,13 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text('تم الدفع بنجاح!',
+                const Text('تم إرسال طلب الحجز',
                     style:
                         TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
                 Text(
-                  'حجزك مع ${flow.worker?.name ?? 'العاملة'} مؤكد ✅\nالمبلغ محجوز — يُحرر بعد إنهاء المهمة',
+                  'أُرسل طلبك إلى ${flow.worker?.name ?? 'العاملة'} وهو بانتظار القبول.\n'
+                  'الدفع نقداً بعد إتمام الخدمة.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       fontSize: 14, color: AppColors.muted, height: 1.6),
@@ -360,7 +279,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pushReplacement(MaterialPageRoute(
-                          builder: (_) => const InvoiceScreen()));
+                          builder: (_) => InvoiceScreen(
+                              bookingId: widget.bookingId ?? flow.bookingId)));
                     },
                     icon: const Icon(Icons.receipt_long_rounded, size: 19),
                     label: const Text('عرض الفاتورة'),

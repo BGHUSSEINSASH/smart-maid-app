@@ -39,9 +39,31 @@ class SecuritySettingsScreen extends ConsumerWidget {
                         ),
                       );
                     } else {
-                      await ref
-                          .read(securityProvider.notifier)
-                          .disableLock();
+                      // تعطيل القفل يتطلب إدخال الرمز الحالي.
+                      var verified = false;
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AppLockScreen(
+                            onDone: () {
+                              verified = true;
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ),
+                      );
+                      if (verified) {
+                        await ref
+                            .read(securityProvider.notifier)
+                            .disableLock();
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'لم يتم تعطيل القفل — الرمز غير مؤكد'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
@@ -61,18 +83,6 @@ class SecuritySettingsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.fingerprint_rounded,
-                        color: AppColors.primary),
-                    title: const Text('استخدام البصمة',
-                        style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: const Text('عند توفّر جهاز يدعم البصمة',
-                        style: TextStyle(fontSize: 12)),
-                    value: security.biometricEnabled,
-                    onChanged: (v) =>
-                        ref.read(securityProvider.notifier).setBiometric(v),
                   ),
                 ],
               ],

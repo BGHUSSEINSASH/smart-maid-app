@@ -1,53 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
-import { users } from '../store';
+import { resolveTokenUser, tokenFromRequest } from './auth';
 
 const alwaysAllowed = [
   '/api/v1/auth/login',
-  '/api/v1/auth/logout',
-  '/api/v1/auth/forgot-password',
-  '/api/v1/auth/reset-password',
+  '/api/v1/auth/register',
   '/api/v1/platform/maintenance',
   '/health',
 ];
 
+/**
+ * يمنع الحسابات المعلّقة من استخدام الـ API. يتحقق من رمز JWT الحقيقي
+ * (لا من رمز تجريبي)، ويترك القرار لـ requireAuth في بقية المسارات.
+ */
 export function suspendedMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
 ): void {
-  const isAlwaysAllowed = alwaysAllowed.some((p) => req.path.startsWith(p));
-  if (isAlwaysAllowed) {
+  if (alwaysAllowed.some((p) => req.path.startsWith(p))) {
     next();
     return;
   }
 
-  const authHeader = req.headers['authorization'];
-  const token = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : null;
-
-  if (!token) {
-    next();
-    return;
-  }
-
-  // استخراج userId من token
-  let userId: string | undefined;
-  if (token.startsWith('demo-token-')) {
-    userId = token.replace('demo-token-', '');
-  }
-
-  if (!userId) {
-    next();
-    return;
-  }
-
-  const user = users.find((u) => u.id === userId);
-  if (user && (user as any).isActive === false) {
+  const user = resolveTokenUser(tokenFromRequest(req));
+  if (user?.suspended) {
     res.status(403).json({
       error: 'account_suspended',
-      message: (user as any).suspendReason || 'تم تعليق حسابك. تواصل مع الدعم.',
-      support_url: '/api/v1/support',
+      message: user.suspendReason || 'تم تعليق حسابك. تواصل مع الدعم.',
     });
     return;
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../core/api/api_client.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/adaptive.dart';
 import '../providers/achievements_provider.dart';
@@ -74,8 +75,7 @@ class LoyaltyScreen extends ConsumerWidget {
                   points: loyalty.pointsForDiscount(5),
                   currencyLabel: currency.code,
                   enabled: loyalty.points >= loyalty.pointsForDiscount(5),
-                  onRedeem: () =>
-                      _redeem(ref, context, 5, loyalty.pointsForDiscount(5)),
+                  onRedeem: () => _redeem(ref, context, 5),
                 ),
               ),
               const SizedBox(width: 12),
@@ -85,8 +85,7 @@ class LoyaltyScreen extends ConsumerWidget {
                   points: loyalty.pointsForDiscount(15),
                   currencyLabel: currency.code,
                   enabled: loyalty.points >= loyalty.pointsForDiscount(15),
-                  onRedeem: () => _redeem(
-                      ref, context, 15, loyalty.pointsForDiscount(15)),
+                  onRedeem: () => _redeem(ref, context, 15),
                 ),
               ),
             ],
@@ -158,10 +157,9 @@ class LoyaltyScreen extends ConsumerWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: context.ink)),
           const SizedBox(height: 10),
           ...const [
-            ('🧾', 'كل \$1 من قيمة الحجز = نقطة واحدة'),
-            ('⭐', 'تقييم 5 نجوم = +50 نقطة مكافأة'),
+            ('🧾', 'كل \$1 من قيمة الحجز المكتمل = نقطة واحدة'),
+            ('⭐', 'أي تقييم بعد الخدمة = +10 نقاط (مهما كان التقييم)'),
             ('👥', 'دعوة صديق عبر الإحالة = +100 نقطة لكما'),
-            ('🥇', 'المستوى الذهبي يضاعف النقاط ×1.5'),
           ].map((e) => ListTile(
                 dense: true,
                 leading: Text(e.$1, style: const TextStyle(fontSize: 20)),
@@ -199,21 +197,34 @@ class LoyaltyScreen extends ConsumerWidget {
     );
   }
 
-  void _redeem(WidgetRef ref, BuildContext ctx, double usd, int cost) {
-    final ok = ref.read(loyaltyProvider.notifier).redeem(usd);
-    if (ok) {
-      Clipboard.setData(ClipboardData(text: 'LOYAL$cost'));
+  Future<void> _redeem(WidgetRef ref, BuildContext ctx, double usd) async {
+    // الاستبدال يتم على الخادم: يخصم النقاط ويُنشئ كوبوناً حقيقياً
+    // يُقبل عند الدفع (POST /loyalty/redeem).
+    String code;
+    int remaining;
+    try {
+      final res = await ApiClient.post('/loyalty/redeem', {'discount': usd});
+      final coupon = res['coupon'];
+      code = (coupon is Map ? coupon['code'] : null)?.toString() ?? '';
+      remaining = ((res['points'] as num?) ?? 0).toInt();
+    } on ApiException catch (e) {
+      if (!ctx.mounted) return;
       ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text(
-            'تم الاستبدال! كود الخصم LOYAL$cost بقيمة \$$usd — استخدمه في حجزك القادم'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.success,
-      ));
-    } else {
-      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-          content: Text('نقاطك غير كافية للاستبدال'),
+          content: Text(e.message),
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating));
+      return;
     }
+    // مزامنة العرض المحلي مع رصيد الخادم.
+    ref.read(loyaltyProvider.notifier).setPoints(remaining);
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+      content: Text(
+          'تم الاستبدال! كود الخصم $code بقيمة \$$usd — استخدمه في حجزك القادم'),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppColors.success,
+    ));
   }
 }
 

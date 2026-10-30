@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models.dart';
 
@@ -7,6 +8,11 @@ class SessionStore {
 
   static const _kUser = 'smart_maid.session.user';
   static const _kToken = 'smart_maid.session.token';
+
+  /// الرمز يُخزَّن في Keychain / Keystore وليس في التفضيلات العادية.
+  static const _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(),
+  );
 
   static Future<AppUser?> loadUser() async {
     try {
@@ -23,14 +29,13 @@ class SessionStore {
     try {
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kUser, jsonEncode(_userToJson(user)));
-      if (token != null) await sp.setString(_kToken, token);
+      if (token != null) await _secure.write(key: _kToken, value: token);
     } catch (_) {}
   }
 
   static Future<String?> loadToken() async {
     try {
-      final sp = await SharedPreferences.getInstance();
-      return sp.getString(_kToken);
+      return await _secure.read(key: _kToken);
     } catch (_) {
       return null;
     }
@@ -40,7 +45,7 @@ class SessionStore {
     try {
       final sp = await SharedPreferences.getInstance();
       await sp.remove(_kUser);
-      await sp.remove(_kToken);
+      await _secure.delete(key: _kToken);
     } catch (_) {}
   }
 
