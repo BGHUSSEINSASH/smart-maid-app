@@ -60,6 +60,11 @@ class _SmartMaidAppState extends ConsumerState<SmartMaidApp> {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(systemScale * settings.textScale),
+            // إعدادات إمكانية الوصول — تؤثر app-wide عبر MediaQuery:
+            // highContrast يُعلم Flutter برفع التباين في الويدجت المدعومة.
+            // disableAnimations يوقف الرسوم المتحركة (تقليل الحركة).
+            highContrast: settings.highContrast,
+            disableAnimations: settings.reduceMotion,
           ),
           child: showLock
               ? AppLockScreen(

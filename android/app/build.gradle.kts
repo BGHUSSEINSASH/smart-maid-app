@@ -41,9 +41,10 @@ android {
         create("release") {
             keyAlias     = keystoreProperties["keyAlias"]     as String? ?: "upload"
             keyPassword  = keystoreProperties["keyPassword"]  as String? ?: ""
+            // storeFile في key.properties نسبي إلى android/ — rootProject.file يحله صح.
             storeFile    = keystoreProperties["storeFile"]
-                ?.let { file(it as String) }
-                ?: file("upload-keystore.jks")
+                ?.let { rootProject.file(it as String) }
+                ?: rootProject.file("upload-keystore.jks")
             storePassword = keystoreProperties["storePassword"] as String? ?: ""
         }
     }
